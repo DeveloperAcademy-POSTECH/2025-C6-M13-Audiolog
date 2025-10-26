@@ -1,0 +1,33 @@
+# Xcode
+DerivedData/
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.xcworkspace/xcuserdata
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# API Services
+*.xcconfig
+
+# User-specific
+*.swp
+*.swo
+*~
+BigPresent/BigPresent/GoogleService-Info.plist
