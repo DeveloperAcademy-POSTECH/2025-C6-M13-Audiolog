@@ -73,17 +73,6 @@ struct ArchiveView: View {
             }
             .padding(.vertical)
         }
-        .overlay {
-            if recordings.isEmpty {
-                ContentUnavailableView(
-                    "No Recordings",
-                    systemImage: "waveform",
-                    description: Text(
-                        "Start recording to see your archive here."
-                    )
-                )
-            }
-        }
         .animation(.default, value: recordings)
     }
 }

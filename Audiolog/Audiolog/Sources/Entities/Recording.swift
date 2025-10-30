@@ -47,13 +47,14 @@ final class Recording {
     ///   - title: Optional title, defaults to file name without extension.
     convenience init(fileURL: URL, duration: TimeInterval, title: String? = nil)
     {
-        let title = title ?? fileURL.deletingPathExtension().lastPathComponent
+        let now = Date()
+        let title = now.formatted("MM월 dd일 HH시 mm분 EEEE")
         self.init(
             id: UUID(),
             title: title,
             filePath: fileURL.path,
             duration: duration,
-            createdAt: Date()
+            createdAt: now
         )
     }
 }

@@ -41,7 +41,7 @@ struct AudioPlayerView: View {
                             Spacer()
 
                             Text(
-                                "\(audioPlayer.currentIndex ?? 0 + 1) / \(audioPlayer.playlist.count)"
+                                "\((audioPlayer.currentIndex ?? 0 ) + 1) / \(audioPlayer.playlist.count)"
                             )
 
                             Spacer()

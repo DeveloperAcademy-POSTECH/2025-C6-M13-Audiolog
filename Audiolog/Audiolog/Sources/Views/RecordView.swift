@@ -20,13 +20,7 @@ struct RecordView: View {
     var body: some View {
         ZStack {
             if AVCaptureDevice.authorizationStatus(for: .audio) != .authorized {
-                Text(
-                    "You haven't authorized Spatial Audio Demo to use the microphone. Change these settings in Settings -> Privacy & Security."
-                )
-                Image(systemName: "lock.trianglebadge.exclamationmark.fill")
-                    .resizable()
-                    .symbolRenderingMode(.multicolor)
-                    .aspectRatio(contentMode: .fit)
+                EmptyView()
             } else {
                 VStack {
                     Title(
