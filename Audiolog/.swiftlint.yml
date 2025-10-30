@@ -1,0 +1,15 @@
+# 실행에서 제외할 룰 식별자
+disabled_rules:
+- closure_parameter_position
+- opening_brace
+- trailing_comma
+- identifier_name
+- large_tuple
+- type_body_length
+- file_length
+- line_length
+- function_body_length
+- cyclomatic_complexity
+# 린트 과정에서 무시할 파일 경로
+excluded:
+#- colight/Sources/ColightApp.swift
