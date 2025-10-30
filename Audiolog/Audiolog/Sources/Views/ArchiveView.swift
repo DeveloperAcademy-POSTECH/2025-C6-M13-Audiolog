@@ -31,11 +31,11 @@ struct ArchiveView: View {
                 VStack(spacing: 10) {
                     ForEach(lastThreeDaysSections(), id: \.date) { section in
                         Button {
-                            if let first = section.items.first {
-                                Task { @MainActor in
-                                    audioPlayer.load(first)
-                                    audioPlayer.play()
-                                }
+                            let items = section.items
+                            guard !items.isEmpty else { return }
+                            Task { @MainActor in
+                                audioPlayer.setPlaylist(items)
+                                audioPlayer.playFromStart()
                             }
                         } label: {
                             ListRow2(
@@ -47,30 +47,30 @@ struct ArchiveView: View {
                 }
                 .padding(.horizontal, 20)
 
-                NavigationLink {
-                    EmptyView()
-                } label: {
-                    Title2(text: "추억 보관함")
-                }
-                .tint(.primary)
-                .disabled(true)  // TODO: 구현
-
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        Spacer().frame(width: 10)
-                        ForEach(sampleMemories, id: \.self) { title in
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(width: 200, height: 200)
-                                Text(title)
-                                    .font(.headline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer().frame(width: 10)
-                    }
-                }
+//                NavigationLink {
+//                    EmptyView()
+//                } label: {
+//                    Title2(text: "추억 보관함")
+//                }
+//                .tint(.primary)
+//                .disabled(true)  // TODO: 구현
+//
+//                ScrollView(.horizontal, showsIndicators: false) {
+//                    HStack(spacing: 10) {
+//                        Spacer().frame(width: 10)
+//                        ForEach(sampleMemories, id: \.self) { title in
+//                            ZStack {
+//                                RoundedRectangle(cornerRadius: 16)
+//                                    .fill(Color.gray.opacity(0.2))
+//                                    .frame(width: 200, height: 200)
+//                                Text(title)
+//                                    .font(.headline)
+//                                    .foregroundStyle(.secondary)
+//                            }
+//                        }
+//                        Spacer().frame(width: 10)
+//                    }
+//                }
             }
             .padding(.vertical)
         }
@@ -131,3 +131,4 @@ extension ArchiveView {
         }
     }
 }
+

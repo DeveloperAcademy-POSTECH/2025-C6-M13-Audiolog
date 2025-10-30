@@ -21,6 +21,53 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
 
     var isPlaying: Bool = false
 
+    var playlist: [Recording] = []
+
+    private var currentIndex: Int?
+
+    func setPlaylist(_ items: [Recording]) {
+        playlist = items
+        currentIndex = items.isEmpty ? nil : 0
+    }
+
+    func playFromStart() {
+        guard !playlist.isEmpty else { return }
+        currentIndex = 0
+        let item = playlist[0]
+        load(item)
+        play()
+    }
+
+    func playNextInPlaylist() {
+        guard !playlist.isEmpty else { return }
+        let nextIndex: Int
+        if let idx = currentIndex {
+            nextIndex = idx + 1
+        } else {
+            nextIndex = 0
+        }
+        guard nextIndex < playlist.count else { return }
+        currentIndex = nextIndex
+        let item = playlist[nextIndex]
+        load(item)
+        play()
+    }
+
+    func playPreviousInPlaylist() {
+        guard !playlist.isEmpty else { return }
+        let previousIndex: Int
+        if let idx = currentIndex {
+            previousIndex = idx - 1
+        } else {
+            previousIndex = playlist.count - 1
+        }
+        guard previousIndex >= 0 && previousIndex < playlist.count else { return }
+        currentIndex = previousIndex
+        let item = playlist[previousIndex]
+        load(item)
+        play()
+    }
+
     var currentPlaybackTime: Double {
         player?.currentTime ?? 0
     }
@@ -96,6 +143,16 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             stopNowPlayingUpdates()
             if let currentSong = current {
                 updateNowPlayingInfo(recording: currentSong)
+            }
+            if let idx = currentIndex {
+                let next = idx + 1
+                if next < playlist.count {
+                    currentIndex = next
+                    let item = playlist[next]
+                    load(item)
+                    play()
+                    return
+                }
             }
             onRecordingFinished?()
         } else {
