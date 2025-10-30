@@ -21,7 +21,7 @@ struct AudiologView: View {
         TabView(selection: $currentTab) {
             Tab(
                 "Record",
-                systemImage: "record.circle",
+                systemImage: "microphone",
                 value: "Record"
             ) {
                 NavigationStack {
@@ -31,7 +31,7 @@ struct AudiologView: View {
 
             Tab(
                 "Archive",
-                systemImage: "archivebox",
+                systemImage: "play.square.stack.fill",
                 value: "Archive"
             ) {
                 NavigationStack {
