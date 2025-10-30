@@ -28,35 +28,37 @@ struct AudioPlayerView: View {
 
                 Spacer().frame(height: 20)
 
-                VStack(spacing: 30) {
-                    HStack {
-                        Button {
-                            audioPlayer.playPreviousInPlaylist()
-                        } label: {
-                            Image(systemName: "arrowtriangle.backward.fill")
-                                .imageScale(.large)
-                                .font(.title3)
+                if audioPlayer.playlist != [] {
+                    VStack(spacing: 30) {
+                        HStack {
+                            Button {
+                                audioPlayer.playPreviousInPlaylist()
+                            } label: {
+                                Image(systemName: "arrowtriangle.backward.fill")
+                                    .imageScale(.large)
+                                    .font(.title3)
+                            }
+                            Spacer()
+
+                            Text(
+                                "\(audioPlayer.currentIndex ?? 0 + 1) / \(audioPlayer.playlist.count)"
+                            )
+
+                            Spacer()
+                            Button {
+                                audioPlayer.playNextInPlaylist()
+                            } label: {
+                                Image(systemName: "arrowtriangle.forward.fill")
+                                    .imageScale(.large)
+                                    .font(.title3)
+                            }
+
                         }
-                        Spacer()
+                        .frame(height: 52)
+                        .padding(.horizontal, 20)
 
-                        Text(
-                            "\(audioPlayer.currentIndex ?? 0 + 1) / \(audioPlayer.playlist.count)"
-                        )
-
-                        Spacer()
-                        Button {
-                            audioPlayer.playNextInPlaylist()
-                        } label: {
-                            Image(systemName: "arrowtriangle.forward.fill")
-                                .imageScale(.large)
-                                .font(.title3)
-                        }
-
+                        Title3(text: current.title)
                     }
-                    .frame(height: 52)
-                    .padding(.horizontal, 20)
-
-                    Title3(text: current.title)
                 }
 
                 Spacer()

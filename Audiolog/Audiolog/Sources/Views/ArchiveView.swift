@@ -21,12 +21,11 @@ struct ArchiveView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 NavigationLink {
-                    EmptyView()
+                    ArchiveListView()
                 } label: {
                     Title2(text: "로그 보관함")
                 }
                 .tint(.primary)
-                .disabled(true)  // TODO: 구현
 
                 VStack(spacing: 10) {
                     ForEach(lastThreeDaysSections(), id: \.date) { section in
