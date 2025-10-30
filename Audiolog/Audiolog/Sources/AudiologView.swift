@@ -52,9 +52,26 @@ struct AudiologView: View {
                 .searchFocused($isSearchFocused)
             }
         }
-        .environment(audioPlayer)
         .tabViewBottomAccessory {
             BottomAccessory()
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard audioPlayer.current != nil else { return }
+                    isPresentingPlayerSheet = true
+                }
+                .gesture(
+                    DragGesture(minimumDistance: 10, coordinateSpace: .local)
+                        .onEnded { value in
+                            if value.translation.height < -20 {
+                                guard audioPlayer.current != nil else { return }
+                                isPresentingPlayerSheet = true
+                            }
+                        }
+                )
         }
+        .sheet(isPresented: $isPresentingPlayerSheet) {
+            AudioPlayerView()
+        }
+        .environment(audioPlayer)
     }
 }

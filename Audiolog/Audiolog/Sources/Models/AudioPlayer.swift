@@ -10,6 +10,7 @@ import MediaPlayer
 import SwiftUI
 
 @Observable
+@MainActor
 class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     override init() {
         super.init()
@@ -23,7 +24,7 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
 
     var playlist: [Recording] = []
 
-    private var currentIndex: Int?
+    var currentIndex: Int?
 
     func setPlaylist(_ items: [Recording]) {
         playlist = items
@@ -200,5 +201,38 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             return .success
         }
         commandsConfigured = true
+    }
+
+    func seek(to time: TimeInterval) {
+        if let player {
+            let clamped = max(0, min(time, player.duration))
+            player.currentTime = clamped
+        }
+        if let current {
+            updateNowPlayingInfo(recording: current)
+        }
+    }
+
+    func togglePlayPause() {
+        if player?.isPlaying == true {
+            pause()
+        } else {
+            play()
+        }
+    }
+
+    func skip(by delta: TimeInterval) {
+        guard let player else { return }
+        let duration = player.duration
+        let newTime = max(0, min(player.currentTime + delta, duration))
+        seek(to: newTime)
+    }
+
+    func skipForward5() {
+        skip(by: 5)
+    }
+
+    func skipBackward5() {
+        skip(by: -5)
     }
 }

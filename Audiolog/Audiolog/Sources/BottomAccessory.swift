@@ -36,6 +36,7 @@ struct BottomAccessory: View {
                         ? "stop.fill" : "play.fill"
                 )
                 .font(.footnote)
+                .contentShape(Rectangle())
             }
         }
         .foregroundStyle(audioPlayer.current == nil ? .secondary : .primary)
