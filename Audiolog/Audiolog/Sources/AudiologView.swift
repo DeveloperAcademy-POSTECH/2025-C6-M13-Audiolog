@@ -9,7 +9,6 @@ import SwiftData
 import SwiftUI
 
 struct AudiologView: View {
-    @State private var audioRecorder = AudioRecorder()
     @State private var audioPlayer = AudioPlayer()
 
     @State private var currentTab = "Record"
@@ -53,7 +52,6 @@ struct AudiologView: View {
                 .searchFocused($isSearchFocused)
             }
         }
-        .environment(audioRecorder)
         .environment(audioPlayer)
     }
 }

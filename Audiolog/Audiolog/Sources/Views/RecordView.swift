@@ -11,8 +11,7 @@ import SwiftUI
 import SwiftData
 
 struct RecordView: View {
-    // 오디오 레코더 객체
-    @Environment(AudioRecorder.self) private var audioRecorder
+    @State private var audioRecorder = AudioRecorder()
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.modelContext) private var modelContext
 
@@ -100,10 +99,43 @@ struct RecordView: View {
         .onAppear {
             audioRecorder.setupCaptureSession()
         }
-        .padding()
+        .onDisappear {
+            if audioRecorder.isRecording {
+                Task {
+                    await stopAndPersistRecordingOnScenePhaseChange()
+                }
+            }
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .background || scenePhase == .inactive {
+                if audioRecorder.isRecording {
+                    Task {
+                        await stopAndPersistRecordingOnScenePhaseChange()
+                    }
+                }
+            }
+        }
     }
 
-    // 시간을 문자열로 포맷하는 함수
+    private func stopAndPersistRecordingOnScenePhaseChange() async {
+        await audioRecorder.stopRecording()
+        logger.log("[RecordView] Stopped recording due to scenePhase change to \(String(describing: scenePhase)). fileURL=\(String(describing: audioRecorder.fileURL)), elapsed=\(audioRecorder.timeElapsed))")
+        if let url = audioRecorder.fileURL {
+            logger.log("[RecordView] Will insert Recording (scenePhase). url=\(url.absoluteString), duration=\(audioRecorder.timeElapsed))")
+            let recording = Recording(fileURL: url, duration: audioRecorder.timeElapsed)
+            modelContext.insert(recording)
+            do {
+                try modelContext.save()
+                logger.log("[RecordView] Saved Recording to SwiftData (scenePhase). url=\(url.lastPathComponent), duration=\(recording.duration))")
+            } catch {
+                logger.log("[RecordView] ERROR: Failed to save Recording on scenePhase change. error=\(String(describing: error))")
+            }
+        } else {
+            logger.log("[RecordView] ERROR: fileURL is nil after stopRecording() on scenePhase change. Nothing was saved.")
+        }
+        audioRecorder.amplitudes.removeAll()
+    }
+
     func formatTime(_ seconds: TimeInterval) -> String {
         let minutes = Int(seconds) / 60
         let secs = Int(seconds) % 60
