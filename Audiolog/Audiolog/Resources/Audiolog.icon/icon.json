@@ -12,25 +12,18 @@
           "fill-specializations" : [
             {
               "value" : {
-                "solid" : "extended-gray:1.00000,1.00000"
+                "automatic-gradient" : "extended-gray:1.00000,1.00000"
               }
             },
             {
               "appearance" : "light",
               "value" : {
-                "solid" : "display-p3:0.09313,0.09313,0.09313,1.00000"
+                "automatic-gradient" : "extended-gray:0.00000,1.00000"
               }
             }
           ],
-          "image-name" : "Audiolog 2.png",
-          "name" : "Audiolog 2",
-          "position" : {
-            "scale" : 0.9,
-            "translation-in-points" : [
-              0,
-              0
-            ]
-          }
+          "image-name" : "Audiolog.png",
+          "name" : "Audiolog"
         }
       ],
       "shadow" : {
