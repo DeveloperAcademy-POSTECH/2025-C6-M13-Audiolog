@@ -46,7 +46,7 @@ struct AudiologView: View {
                 role: .search
             ) {
                 NavigationStack {
-                    SearchView()
+                    SearchView(searchQuery: searchText)
                 }
                 .searchable(text: $searchText, prompt: "Search")
                 .searchFocused($isSearchFocused)

@@ -5,16 +5,66 @@
 //  Created by Sean Cho on 10/28/25.
 //
 
+import SwiftData
 import SwiftUI
 
 struct SearchView: View {
-    var body: some View {
-        Text("Search Screen")
-            .font(.largeTitle)
-            .padding()
-    }
-}
+    @Environment(AudioPlayer.self) private var audioPlayer
 
-#Preview {
-    SearchView()
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: [
+        SortDescriptor<Recording>(\Recording.createdAt, order: .reverse)
+    ]) private var recordings: [Recording]
+
+    let searchQuery: String
+
+    private var filtered: [Recording] {
+        let q = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return recordings }
+        return recordings.filter { $0.title.localizedStandardContains(q) }
+    }
+
+    var body: some View {
+        List {
+            ForEach(filtered) { item in
+                Button {
+                    Task { @MainActor in
+                        audioPlayer.load(item)
+                        audioPlayer.play()
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "waveform.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.blue)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.title)
+                                .font(.headline)
+                                .lineLimit(1)
+                            HStack(spacing: 8) {
+                                Text(item.formattedDuration)
+                                Text("·")
+                                Text(item.createdAt, style: .date)
+                            }
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+            }
+            .onDelete(perform: delete)
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("검색")
+    }
+
+    private func delete(at offsets: IndexSet) {
+        let items = offsets.map { recordings[$0] }
+        for item in items {
+            modelContext.delete(item)
+        }
+    }
 }
