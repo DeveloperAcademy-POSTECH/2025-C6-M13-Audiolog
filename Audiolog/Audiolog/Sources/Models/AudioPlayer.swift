@@ -11,16 +11,15 @@ import SwiftUI
 
 @Observable
 class AudioPlayer: NSObject, AVAudioPlayerDelegate {
-    private var player: AVAudioPlayer?
-    private var current: Recording?
-    private var progressTimer: Timer?
-    private var commandsConfigured = false
-
     override init() {
         super.init()
         setupAudioSession()
         setupRemoteCommands()
     }
+
+    var current: Recording?
+
+    var isPlaying: Bool = false
 
     var currentPlaybackTime: Double {
         player?.currentTime ?? 0
@@ -35,6 +34,10 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     }
 
     var onRecordingFinished: (() -> Void)?
+
+    private var player: AVAudioPlayer?
+    private var progressTimer: Timer?
+    private var commandsConfigured = false
 
     func load(_ recording: Recording) {
         player = try? AVAudioPlayer(contentsOf: recording.fileURL)
@@ -75,9 +78,12 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             MPMediaItemPropertyTitle: recording.title,
             MPMediaItemPropertyArtist: "Audiolog",
             MPMediaItemPropertyPlaybackDuration: recording.duration,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: player?.currentTime ?? 0,
-            MPNowPlayingInfoPropertyPlaybackRate: (player?.isPlaying == true) ? 1.0 : 0.0,
-            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: player?.currentTime
+                ?? 0,
+            MPNowPlayingInfoPropertyPlaybackRate: (player?.isPlaying == true)
+                ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio
+                .rawValue,
         ]
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
@@ -88,7 +94,9 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     ) {
         if flag {
             stopNowPlayingUpdates()
-            if let currentSong = current { updateNowPlayingInfo(recording: currentSong) }
+            if let currentSong = current {
+                updateNowPlayingInfo(recording: currentSong)
+            }
             onRecordingFinished?()
         } else {
         }
@@ -105,15 +113,20 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
 
     private func startNowPlayingUpdates() {
         progressTimer?.invalidate()
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        progressTimer = Timer.scheduledTimer(
+            withTimeInterval: 0.5,
+            repeats: true
+        ) { [weak self] _ in
             guard let self, let current = self.current else { return }
             self.updateNowPlayingInfo(recording: current)
         }
+        isPlaying = true
     }
 
     private func stopNowPlayingUpdates() {
         progressTimer?.invalidate()
         progressTimer = nil
+        isPlaying = false
     }
 
     private func setupRemoteCommands() {

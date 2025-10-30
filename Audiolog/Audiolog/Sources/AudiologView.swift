@@ -53,5 +53,8 @@ struct AudiologView: View {
             }
         }
         .environment(audioPlayer)
+        .tabViewBottomAccessory {
+            BottomAccessory()
+        }
     }
 }

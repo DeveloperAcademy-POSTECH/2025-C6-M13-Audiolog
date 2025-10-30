@@ -22,13 +22,10 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
     var timeElapsed: TimeInterval = 0
 
     // First buffer presentation timestamp (monotonic media clock)
-    private var firstBufferPTS: CMTime?
+    var firstBufferPTS: CMTime?
 
     // 녹음된 오디오 파일의 URL
     var fileURL: URL?
-
-    // 진폭 값 배열
-    var amplitudes: [Float] = []
 
     // 앱의 AVAssetWriter
     private var assetWriter: AVAssetWriter?
@@ -73,7 +70,6 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             stereoAudioDataOutput = nil
             spatialAudioMetaDataSampleGenerator = nil
             sessionQueue = DispatchQueue(label: "sessionQueue")
-            self.amplitudes = []
             logger.log("AudioRecorder disabled on Simulator.")
         #else
             // 앱의 캡처 세션 초기화
@@ -96,9 +92,6 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
 
             // sessionQueue 초기화
             sessionQueue = DispatchQueue(label: "recordSessionQueue")
-
-            // 파형 값 관련 변수 초기화
-            self.amplitudes = []
         #endif
     }
 
@@ -342,8 +335,6 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                         )
                         // 스테레오 오디오 입력에 샘플 버퍼 추가
                         stereoInput.append(sampleBuffer)
-                        // 샘플 버퍼로부터 녹음 파형 UI에 사용할 값 계산
-                        computeValuesForWaveFormUI(sampleBuffer)
                     }
                 }
             }
@@ -482,49 +473,6 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
 
         }
 
-    }
-
-    // 파형 UI 시각화를 위한 오디오 샘플의 진폭 값 계산 함수
-    private func computeValuesForWaveFormUI(_ sampleBuffer: CMSampleBuffer) {
-
-        // 오디오 데이터를 포함한 블록 버퍼 가져오기
-        guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else {
-            return
-        }
-
-        // 버퍼 크기 확인 및 Float 샘플 배열 준비
-        let length = CMBlockBufferGetDataLength(blockBuffer)
-        var floatData = [Float](
-            repeating: 0,
-            count: length / MemoryLayout<Float>.size
-        )
-
-        // 원시 오디오 데이터를 float 배열로 복사
-        let status = CMBlockBufferCopyDataBytes(
-            blockBuffer,
-            atOffset: 0,
-            dataLength: length,
-            destination: &floatData
-        )
-        guard status == noErr else { return }
-
-        // 오디오 신호의 RMS(제곱평균제곱근) 값 계산
-        // RMS는 오디오 진폭을 나타내는 지표
-        let rms = sqrt(
-            floatData.map { $0 * $0 }.reduce(0, +) / Float(floatData.count)
-        )
-
-        // RMS 값을 최대 1.0으로 클램핑하여 정규화
-        let normalized = min(rms, 1.0)
-
-        // 메인 스레드에서 amplitudes 배열에 값을 추가하여 UI 업데이트
-        DispatchQueue.main.async {
-            self.amplitudes.append(normalized)
-            // 표시를 위해 배열 크기를 최대 100개 샘플로 유지
-            if self.amplitudes.count > 100 {
-                self.amplitudes.removeFirst()
-            }
-        }
     }
 
     // 공간 오디오 메타데이터 샘플을 asset writer 입력에 추가하는 함수
