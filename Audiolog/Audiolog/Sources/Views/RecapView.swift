@@ -17,32 +17,30 @@ struct RecapView: View {
     }
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            let columns = [
-                GridItem(.flexible(), spacing: 20),
-                GridItem(.flexible(), spacing: 20),
-            ]
-            LazyVGrid(columns: columns, spacing: 20) {
-                ForEach(sampleMemories, id: \.self) { title in
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(
-                                width: recapCategoryButtonWidth,
-                                height: recapCategoryButtonWidth
-                            )
-                        Text(title)
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
+        NavigationStack {
+            ScrollView(.vertical, showsIndicators: false) {
+                let columns = [
+                    GridItem(.flexible(), spacing: 20),
+                    GridItem(.flexible(), spacing: 20),
+                ]
+                LazyVGrid(columns: columns, spacing: 20) {
+                    ForEach(sampleMemories, id: \.self) { title in
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(
+                                    width: recapCategoryButtonWidth,
+                                    height: recapCategoryButtonWidth
+                                )
+                            Text(title)
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
+                .padding(.horizontal, 20)
             }
-            .padding(.horizontal, 20)
+            .navigationTitle("추억 보관함")
         }
-        .navigationTitle("추억 보관함")
     }
-}
-
-#Preview {
-    RecapView()
 }

@@ -18,39 +18,42 @@ struct ArchiveView: View {
 
     // MARK: - Body
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                NavigationLink {
-                    ArchiveListView()
-                } label: {
-                    Title2(text: "로그 보관함")
-                }
-                .tint(.primary)
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    NavigationLink {
+                        ArchiveListView()
+                    } label: {
+                        Title2(text: "로그 보관함")
+                    }
+                    .tint(.primary)
 
-                VStack(spacing: 10) {
-                    ForEach(lastThreeDaysSections(), id: \.date) { section in
-                        Button {
-                            let items = section.items
-                            guard !items.isEmpty else { return }
-                            Task { @MainActor in
-                                audioPlayer.setPlaylist(items)
-                                audioPlayer.playFromStart()
+                    VStack(spacing: 10) {
+                        ForEach(lastThreeDaysSections(), id: \.date) {
+                            section in
+                            Button {
+                                let items = section.items
+                                guard !items.isEmpty else { return }
+                                Task { @MainActor in
+                                    audioPlayer.setPlaylist(items)
+                                    audioPlayer.playFromStart()
+                                }
+                            } label: {
+                                ListRow2(
+                                    title: section.dateFormatted,
+                                    sub: "\(section.items.count)개의 녹음"
+                                )
                             }
-                        } label: {
-                            ListRow2(
-                                title: section.dateFormatted,
-                                sub: "\(section.items.count)개의 녹음"
-                            )
                         }
                     }
+                    .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, 20)
+                .padding(.vertical)
             }
-            .padding(.vertical)
+            .animation(.default, value: recordings)
         }
-        .animation(.default, value: recordings)
     }
-    
+
     private struct DaySection: Identifiable {
         var id: Date { date }
         let date: Date

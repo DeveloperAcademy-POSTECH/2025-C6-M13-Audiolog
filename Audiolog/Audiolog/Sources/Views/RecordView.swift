@@ -18,54 +18,58 @@ struct RecordView: View {
     @State private var showToast: Bool = false
 
     var body: some View {
-        ZStack {
-            if AVCaptureDevice.authorizationStatus(for: .audio) != .authorized {
-                EmptyView()
-            } else {
-                VStack {
-                    Title(
-                        text: audioRecorder.isRecording
-                            ? formattedDateString(
-                                fromPTS: audioRecorder.firstBufferPTS
-                            )
-                            : "오늘의 로그를 남겨볼까요?"
-                    )
-                    .padding(.top, 44)
-                    Spacer()
-                }
+        NavigationStack {
+            ZStack {
+                if AVCaptureDevice.authorizationStatus(for: .audio)
+                    != .authorized
+                {
+                    EmptyView()
+                } else {
+                    VStack {
+                        Title(
+                            text: audioRecorder.isRecording
+                                ? formattedDateString(
+                                    fromPTS: audioRecorder.firstBufferPTS
+                                )
+                                : "오늘의 로그를 남겨볼까요?"
+                        )
+                        .padding(.top, 44)
+                        Spacer()
+                    }
 
-                if audioRecorder.isRecording {
-                    Text(formatTime(audioRecorder.timeElapsed))
-                        .font(.body)
-                        .offset(y: -90)
-                }
+                    if audioRecorder.isRecording {
+                        Text(formatTime(audioRecorder.timeElapsed))
+                            .font(.body)
+                            .offset(y: -90)
+                    }
 
-                Toast()
-                    .opacity(showToast ? 1 : 0)
-                    .offset(y: -98)
+                    Toast()
+                        .opacity(showToast ? 1 : 0)
+                        .offset(y: -98)
 
-                Button {
-                    handleRecordButtonTapped()
-                } label: {
-                    MicButtonLabel(isRecording: audioRecorder.isRecording)
+                    Button {
+                        handleRecordButtonTapped()
+                    } label: {
+                        MicButtonLabel(isRecording: audioRecorder.isRecording)
+                    }
                 }
             }
-        }
-        .onAppear {
-            audioRecorder.setupCaptureSession()
-        }
-        .onDisappear {
-            if audioRecorder.isRecording {
-                Task {
-                    await stopAndPersistRecordingOnScenePhaseChange()
-                }
+            .onAppear {
+                audioRecorder.setupCaptureSession()
             }
-        }
-        .onChange(of: scenePhase) {
-            if scenePhase == .background || scenePhase == .inactive {
+            .onDisappear {
                 if audioRecorder.isRecording {
                     Task {
                         await stopAndPersistRecordingOnScenePhaseChange()
+                    }
+                }
+            }
+            .onChange(of: scenePhase) {
+                if scenePhase == .background || scenePhase == .inactive {
+                    if audioRecorder.isRecording {
+                        Task {
+                            await stopAndPersistRecordingOnScenePhaseChange()
+                        }
                     }
                 }
             }

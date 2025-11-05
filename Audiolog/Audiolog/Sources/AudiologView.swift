@@ -12,10 +12,7 @@ struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
 
     @State private var currentTab = "Record"
-    @State private var searchText: String = ""
-    @FocusState private var isSearchFocused: Bool
     @State private var isPresentingPlayerSheet: Bool = false
-    @State private var nowPlaying: Recording?
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -24,9 +21,7 @@ struct AudiologView: View {
                 systemImage: "microphone",
                 value: "Record"
             ) {
-                NavigationStack {
-                    RecordView()
-                }
+                RecordView()
             }
 
             Tab(
@@ -34,9 +29,7 @@ struct AudiologView: View {
                 systemImage: "play.square.stack.fill",
                 value: "Archive"
             ) {
-                NavigationStack {
-                    ArchiveView()
-                }
+                ArchiveView()
             }
 
             Tab(
@@ -44,44 +37,33 @@ struct AudiologView: View {
                 systemImage: "star.fill",
                 value: "Recap"
             ) {
-                NavigationStack {
-                    RecapView()
-                }
+                RecapView()
             }
-            
+
             Tab(
                 "Search",
                 systemImage: "magnifyingglass",
                 value: "Search",
                 role: .search
             ) {
-                NavigationStack {
-                    SearchView(searchQuery: searchText)
-                }
-                .searchable(text: $searchText, prompt: "Search")
-                .searchFocused($isSearchFocused)
+                SearchView()
             }
         }
         .tabViewBottomAccessory {
             BottomAccessory()
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    guard audioPlayer.current != nil else { return }
-                    isPresentingPlayerSheet = true
+                    presentPlayerSheet()
                 }
-                .gesture(
-                    DragGesture(minimumDistance: 10, coordinateSpace: .local)
-                        .onEnded { value in
-                            if value.translation.height < -20 {
-                                guard audioPlayer.current != nil else { return }
-                                isPresentingPlayerSheet = true
-                            }
-                        }
-                )
         }
         .sheet(isPresented: $isPresentingPlayerSheet) {
             AudioPlayerView()
         }
         .environment(audioPlayer)
+    }
+
+    private func presentPlayerSheet() {
+        guard audioPlayer.current != nil else { return }
+        isPresentingPlayerSheet = true
     }
 }
