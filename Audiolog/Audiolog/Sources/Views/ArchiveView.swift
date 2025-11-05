@@ -45,41 +45,13 @@ struct ArchiveView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-
-                //                NavigationLink {
-                //                    EmptyView()
-                //                } label: {
-                //                    Title2(text: "추억 보관함")
-                //                }
-                //                .tint(.primary)
-                //                .disabled(true)  // TODO: 구현
-                //
-                //                ScrollView(.horizontal, showsIndicators: false) {
-                //                    HStack(spacing: 10) {
-                //                        Spacer().frame(width: 10)
-                //                        ForEach(sampleMemories, id: \.self) { title in
-                //                            ZStack {
-                //                                RoundedRectangle(cornerRadius: 16)
-                //                                    .fill(Color.gray.opacity(0.2))
-                //                                    .frame(width: 200, height: 200)
-                //                                Text(title)
-                //                                    .font(.headline)
-                //                                    .foregroundStyle(.secondary)
-                //                            }
-                //                        }
-                //                        Spacer().frame(width: 10)
-                //                    }
-                //                }
             }
             .padding(.vertical)
         }
         .animation(.default, value: recordings)
     }
-}
-
-// MARK: - Helpers
-extension ArchiveView {
-    fileprivate struct DaySection: Identifiable {
+    
+    private struct DaySection: Identifiable {
         var id: Date { date }
         let date: Date
         let items: [Recording]
@@ -91,7 +63,7 @@ extension ArchiveView {
         }
     }
 
-    fileprivate func lastThreeDaysSections() -> [DaySection] {
+    private func lastThreeDaysSections() -> [DaySection] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         let days: [Date] = (0..<3).compactMap { offset in
@@ -106,10 +78,6 @@ extension ArchiveView {
         return days.map { day in
             DaySection(date: day, items: grouped[day] ?? [])
         }
-    }
-
-    fileprivate var sampleMemories: [String] {
-        ["2025년 여름", "2025년 여름", "봄 소리", "가을 산책"]
     }
 
     fileprivate func delete(at offsets: IndexSet) {

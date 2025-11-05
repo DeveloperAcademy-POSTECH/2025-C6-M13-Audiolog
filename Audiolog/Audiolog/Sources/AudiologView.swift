@@ -40,6 +40,16 @@ struct AudiologView: View {
             }
 
             Tab(
+                "Recap",
+                systemImage: "star.fill",
+                value: "Recap"
+            ) {
+                NavigationStack {
+                    RecapView()
+                }
+            }
+            
+            Tab(
                 "Search",
                 systemImage: "magnifyingglass",
                 value: "Search",
