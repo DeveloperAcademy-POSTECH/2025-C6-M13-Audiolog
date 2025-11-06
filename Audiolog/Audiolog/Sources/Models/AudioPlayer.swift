@@ -19,12 +19,24 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     }
 
     var current: Recording?
-
     var isPlaying: Bool = false
-
     var playlist: [Recording] = []
-
     var currentIndex: Int?
+    var currentPlaybackTime: Double {
+        player?.currentTime ?? 0
+    }
+    var rate: Float {
+        player?.rate ?? 0
+    }
+    var totalDuration: Double {
+        player?.duration ?? 0
+    }
+
+    var onRecordingFinished: (() -> Void)?
+
+    private var player: AVAudioPlayer?
+    private var progressTimer: Timer?
+    private var commandsConfigured = false
 
     func setPlaylist(_ items: [Recording]) {
         playlist = items
@@ -62,33 +74,28 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
         } else {
             previousIndex = playlist.count - 1
         }
-        guard previousIndex >= 0 && previousIndex < playlist.count else { return }
+        guard previousIndex >= 0 && previousIndex < playlist.count else {
+            return
+        }
         currentIndex = previousIndex
         let item = playlist[previousIndex]
         load(item)
         play()
     }
 
-    var currentPlaybackTime: Double {
-        player?.currentTime ?? 0
-    }
-
-    var rate: Float {
-        player?.rate ?? 0
-    }
-
-    var totalDuration: Double {
-        player?.duration ?? 0
-    }
-
-    var onRecordingFinished: (() -> Void)?
-
-    private var player: AVAudioPlayer?
-    private var progressTimer: Timer?
-    private var commandsConfigured = false
-
     func load(_ recording: Recording) {
-        player = try? AVAudioPlayer(contentsOf: recording.fileURL)
+        logger.log("Loading audio from: \(recording.fileURL.absoluteString)")
+        do {
+            player = try AVAudioPlayer(contentsOf: recording.fileURL)
+            logger.log(
+                "AVAudioPlayer initialized successfully for: \(recording.fileURL.lastPathComponent)"
+            )
+        } catch {
+            logger.error(
+                "Failed to initialize AVAudioPlayer: \(String(describing: error))"
+            )
+            player = nil
+        }
         player?.prepareToPlay()
         current = recording
     }
@@ -119,6 +126,39 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
         if let currentSong = current {
             updateNowPlayingInfo(recording: currentSong)
         }
+    }
+
+    func seek(to time: TimeInterval) {
+        if let player {
+            let clamped = max(0, min(time, player.duration))
+            player.currentTime = clamped
+        }
+        if let current {
+            updateNowPlayingInfo(recording: current)
+        }
+    }
+
+    func togglePlayPause() {
+        if player?.isPlaying == true {
+            pause()
+        } else {
+            play()
+        }
+    }
+
+    func skip(by delta: TimeInterval) {
+        guard let player else { return }
+        let duration = player.duration
+        let newTime = max(0, min(player.currentTime + delta, duration))
+        seek(to: newTime)
+    }
+
+    func skipForward5() {
+        skip(by: 5)
+    }
+
+    func skipBackward5() {
+        skip(by: -5)
     }
 
     func updateNowPlayingInfo(recording: Recording) {
@@ -201,38 +241,5 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             return .success
         }
         commandsConfigured = true
-    }
-
-    func seek(to time: TimeInterval) {
-        if let player {
-            let clamped = max(0, min(time, player.duration))
-            player.currentTime = clamped
-        }
-        if let current {
-            updateNowPlayingInfo(recording: current)
-        }
-    }
-
-    func togglePlayPause() {
-        if player?.isPlaying == true {
-            pause()
-        } else {
-            play()
-        }
-    }
-
-    func skip(by delta: TimeInterval) {
-        guard let player else { return }
-        let duration = player.duration
-        let newTime = max(0, min(player.currentTime + delta, duration))
-        seek(to: newTime)
-    }
-
-    func skipForward5() {
-        skip(by: 5)
-    }
-
-    func skipBackward5() {
-        skip(by: -5)
     }
 }
