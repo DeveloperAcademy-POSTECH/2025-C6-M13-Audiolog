@@ -41,7 +41,7 @@ struct BottomAccessory: View {
         }
         .foregroundStyle(audioPlayer.current == nil ? .secondary : .primary)
         .tint(audioPlayer.current == nil ? .secondary : .primary)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 100)
     }
 }
 

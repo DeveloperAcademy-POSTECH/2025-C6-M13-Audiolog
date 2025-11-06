@@ -49,21 +49,15 @@ struct AudiologView: View {
                 SearchView()
             }
         }
-        .tabViewBottomAccessory {
-            BottomAccessory()
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    presentPlayerSheet()
-                }
-        }
-        .sheet(isPresented: $isPresentingPlayerSheet) {
-            AudioPlayerView()
+        .overlay {
+            VStack {
+                Spacer()
+                MiniPlayerView()
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 62)
+            .padding(.horizontal, 20)
         }
         .environment(audioPlayer)
-    }
-
-    private func presentPlayerSheet() {
-        guard audioPlayer.current != nil else { return }
-        isPresentingPlayerSheet = true
     }
 }
