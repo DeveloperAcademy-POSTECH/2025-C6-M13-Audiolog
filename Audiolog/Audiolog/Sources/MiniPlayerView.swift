@@ -15,7 +15,7 @@ struct MiniPlayerView: View {
     var body: some View {
         VStack {
             if let current = audioPlayer.current {
-                Text(current.title)
+                Text(current.title == "" ? "제목 생성중" : current.title)
                     .font(.body.weight(.semibold))
                     .foregroundColor(.primary)
 

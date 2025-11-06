@@ -79,10 +79,12 @@ struct RecordView: View {
             logger.log(
                 "[RecordView] Will insert Recording (scenePhase). url=\(url.absoluteString), duration=\(audioRecorder.timeElapsed))"
             )
+
             let recording = Recording(
                 fileURL: url,
                 duration: audioRecorder.timeElapsed
             )
+
             modelContext.insert(recording)
             do {
                 try modelContext.save()
