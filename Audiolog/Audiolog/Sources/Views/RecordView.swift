@@ -13,6 +13,8 @@ import SwiftUI
 struct RecordView: View {
     @State private var audioRecorder = AudioRecorder()
 
+    // TODO: Weather, Location 관련 Manager 모셔오기
+    
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.modelContext) private var modelContext
 
@@ -129,6 +131,8 @@ struct RecordView: View {
                     logger.log(
                         "[RecordView] Will insert Recording. url=\(url.absoluteString), duration=\(audioRecorder.timeElapsed))"
                     )
+                    
+                    // TODO: Location, Weather 넣기
                     let recording = Recording(
                         fileURL: url,
                         duration: audioRecorder.timeElapsed
@@ -139,6 +143,8 @@ struct RecordView: View {
                         logger.log(
                             "[RecordView] Saved Recording to SwiftData. url=\(url.lastPathComponent), duration=\(recording.duration))"
                         )
+                        
+                        // TODO: 엘리안 슈퍼 분석 세트 돌리기
                     } catch {
                         logger.log(
                             "[RecordView] ERROR: Failed to save Recording. error=\(String(describing: error))"

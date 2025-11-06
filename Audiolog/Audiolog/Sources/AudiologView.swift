@@ -10,6 +10,10 @@ import SwiftUI
 
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
+    
+    @Query(sort: [
+        SortDescriptor<Recording>(\Recording.createdAt, order: .reverse)
+    ]) private var recordings: [Recording]
 
     @State private var currentTab = "Record"
     @State private var isPresentingPlayerSheet: Bool = false
@@ -59,5 +63,8 @@ struct AudiologView: View {
             .padding(.horizontal, 20)
         }
         .environment(audioPlayer)
+        .task {
+            // TODO: recordings에서 isGenerated false인거 있으면 그거 엘리안 슈퍼세트 돌리기
+        }
     }
 }
