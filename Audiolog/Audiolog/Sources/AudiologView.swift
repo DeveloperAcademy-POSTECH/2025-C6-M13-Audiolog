@@ -26,7 +26,7 @@ struct AudiologView: View {
 
             Tab(
                 "Archive",
-                systemImage: "play.square.stack.fill",
+                systemImage: "rectangle.split.2x2.fill",
                 value: "Archive"
             ) {
                 ArchiveView()
