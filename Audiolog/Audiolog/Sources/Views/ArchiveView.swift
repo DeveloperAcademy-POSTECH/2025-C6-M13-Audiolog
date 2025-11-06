@@ -22,6 +22,7 @@ struct ArchiveView: View {
                 ForEach(recordings) { item in
                     Button {
                         Task { @MainActor in
+                            audioPlayer.setPlaylist(recordings)
                             audioPlayer.load(item)
                             audioPlayer.play()
                         }
