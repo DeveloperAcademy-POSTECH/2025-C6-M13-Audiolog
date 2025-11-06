@@ -3,59 +3,49 @@ import SwiftData
 
 @Model
 final class Recording {
-    /// Unique identifier for the recording.
     var id: UUID
-    /// Title of the recording.
+    //    var filePath: String
+    var fileURL: URL
     var title: String
-    /// File system path of the recording file.
-    var filePath: String
-    /// Duration of the recording in seconds.
+    var isTitleGenerated: Bool
     var duration: TimeInterval
-    /// Date when the recording was created.
     var createdAt: Date
+    var weather: String?
+    var tags: [String]?
+    var dialog: String?
+    var isFavorite: Bool = false
+    var location: String?
+    var bgmTitle: String?
+    var bgmArtist: String?
 
-    /// The file URL constructed from the file path.
-    var fileURL: URL {
-        URL(fileURLWithPath: filePath)
-    }
-
-    /// Designated initializer for all properties.
-    /// - Parameters:
-    ///   - id: Unique identifier.
-    ///   - title: Title of the recording.
-    ///   - filePath: File system path to the recording.
-    ///   - duration: Duration in seconds.
-    ///   - createdAt: Creation date.
     init(
-        id: UUID,
-        title: String,
-        filePath: String,
+        id: UUID = UUID(),
+        fileURL: URL,
+        title: String = "",
+        isTitleGenerated: Bool = false,
         duration: TimeInterval,
-        createdAt: Date
+        createdAt: Date = .now,
+        weather: String? = nil,
+        tags: [String]? = nil,
+        dialog: String? = nil,
+        isFavorite: Bool = false,
+        location: String? = nil,
+        bgmTitle: String? = nil,
+        bgmArtist: String? = nil
     ) {
         self.id = id
+        self.fileURL = fileURL
         self.title = title
-        self.filePath = filePath
+        self.isTitleGenerated = isTitleGenerated
         self.duration = duration
         self.createdAt = createdAt
-    }
-
-    /// Convenience initializer using a file URL and duration.
-    /// - Parameters:
-    ///   - fileURL: URL of the recording file.
-    ///   - duration: Duration in seconds.
-    ///   - title: Optional title, defaults to file name without extension.
-    convenience init(fileURL: URL, duration: TimeInterval, title: String? = nil)
-    {
-        let now = Date()
-        let title = now.formatted("MM월 dd일 HH시 mm분 EEEE")
-        self.init(
-            id: UUID(),
-            title: title,
-            filePath: fileURL.path,
-            duration: duration,
-            createdAt: now
-        )
+        self.weather = weather
+        self.tags = tags
+        self.dialog = dialog
+        self.isFavorite = isFavorite
+        self.location = location
+        self.bgmTitle = bgmTitle
+        self.bgmArtist = bgmArtist
     }
 }
 
