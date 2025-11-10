@@ -314,13 +314,13 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                                 formatDesc!
                             )?.pointee
                         {
-                            logger.log(
-                                "Spatial buffer received - ts: \(pts) dur: \(dur) sampleRate: \(asbd.mSampleRate) channels: \(asbd.mChannelsPerFrame)"
-                            )
+//                            logger.log(
+//                                "Spatial buffer received - ts: \(pts) dur: \(dur) sampleRate: \(asbd.mSampleRate) channels: \(asbd.mChannelsPerFrame)"
+//                            )
                         } else {
-                            logger.log(
-                                "Spatial buffer received - ts: \(pts) dur: \(dur) (no ASBD)"
-                            )
+//                            logger.log(
+//                                "Spatial buffer received - ts: \(pts) dur: \(dur) (no ASBD)"
+//                            )
                         }
                         self.logFOADirection(from: sampleBuffer)
                         // 공간 오디오 입력에 샘플 버퍼 추가
@@ -330,9 +330,9 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
 
                 if stereoInput.isReadyForMoreMediaData {
                     if output == self.stereoAudioDataOutput {
-                        logger.log(
-                            "Stereo buffer received at: \(CMSampleBufferGetPresentationTimeStamp(sampleBuffer)) duration: \(CMSampleBufferGetDuration(sampleBuffer))"
-                        )
+//                        logger.log(
+//                            "Stereo buffer received at: \(CMSampleBufferGetPresentationTimeStamp(sampleBuffer)) duration: \(CMSampleBufferGetDuration(sampleBuffer))"
+//                        )
                         // 스테레오 오디오 입력에 샘플 버퍼 추가
                         stereoInput.append(sampleBuffer)
                     }
@@ -754,19 +754,19 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
         let elevation = atan2(nz, sqrt(nx * nx + ny * ny)) * 180.0 / .pi
 
         let ts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-        logger.log(
-            String(
-                format:
-                    "FOA DOA ~ ts:%@ xyz[%.3f, %.3f, %.3f] az/el[%.1f°, %.1f°] ch:%d bpf:%d",
-                String(describing: ts),
-                nx,
-                ny,
-                nz,
-                azimuth,
-                elevation,
-                channels,
-                bytesPerFrame
-            )
-        )
+//        logger.log(
+//            String(
+//                format:
+//                    "FOA DOA ~ ts:%@ xyz[%.3f, %.3f, %.3f] az/el[%.1f°, %.1f°] ch:%d bpf:%d",
+//                String(describing: ts),
+//                nx,
+//                ny,
+//                nz,
+//                azimuth,
+//                elevation,
+//                channels,
+//                bytesPerFrame
+//            )
+//        )
     }
 }
