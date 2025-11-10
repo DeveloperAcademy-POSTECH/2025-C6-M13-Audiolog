@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct RecapView: View {
+    // TODO: Memories 눌렀을 때 조회 가능하게
     private var sampleMemories: [String] {
-        ["2025년 가을", "2025년 여름", "봄 소리", "가을 산책"]
+        ["즐겨찾기", "2025년 여름", "봄 소리", "가을 산책"]
     }
 
     var recapCategoryButtonWidth: CGFloat {
