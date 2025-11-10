@@ -74,12 +74,14 @@ struct RecordView: View {
     private func stopAndPersistRecordingOnScenePhaseChange() async {
         await audioRecorder.stopRecording()
         logger.log(
-            "[RecordView] Stopped recording due to scenePhase=\(String(describing: scenePhase)). " +
-            "fileURL=\(String(describing: audioRecorder.fileURL)), elapsed=\(audioRecorder.timeElapsed)"
+            "[RecordView] Stopped recording due to scenePhase=\(String(describing: scenePhase)). "
+                + "fileURL=\(String(describing: audioRecorder.fileURL)), elapsed=\(audioRecorder.timeElapsed)"
         )
 
         guard let url = audioRecorder.fileURL else {
-            logger.log("[RecordView] ERROR: fileURL is nil after stopRecording() on scenePhase change. Nothing was saved.")
+            logger.log(
+                "[RecordView] ERROR: fileURL is nil after stopRecording() on scenePhase change. Nothing was saved."
+            )
             return
         }
 
@@ -92,9 +94,13 @@ struct RecordView: View {
         modelContext.insert(recording)
         do {
             try modelContext.save()
-            logger.log("[RecordView] Saved Recording to SwiftData (scenePhase). url=\(url.lastPathComponent), duration=\(recording.duration)")
+            logger.log(
+                "[RecordView] Saved Recording to SwiftData (scenePhase). url=\(url.lastPathComponent), duration=\(recording.duration)"
+            )
         } catch {
-            logger.log("[RecordView] ERROR: Failed to save Recording on scenePhase change. error=\(String(describing: error))")
+            logger.log(
+                "[RecordView] ERROR: Failed to save Recording on scenePhase change. error=\(String(describing: error))"
+            )
             return
         }
 
@@ -102,10 +108,12 @@ struct RecordView: View {
             _ = try await waitUntilFileReady(url)
         } catch {
             let ns = error as NSError
-            logger.log("[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)")
+            logger.log(
+                "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
+            )
         }
 
-        let processor = AudioProcesser() // DI 사용 시 주입 인스턴스로 교체
+        let processor = AudioProcesser()  // DI 사용 시 주입 인스턴스로 교체
         await processor.processAudio(for: recording, modelContext: modelContext)
     }
 
@@ -221,52 +229,45 @@ struct RecordView: View {
             return n.uint64Value
         }
 
-        while Date().timeIntervalSince(start) < timeout {
-            // 1) 파일 존재 확인
+        while true {
+            let now = Date()
+
+            if now.timeIntervalSince(start) >= timeout {
+                throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
+            }
+
             guard fm.fileExists(atPath: url.path) else {
-                try? await Task.sleep(
-                    nanoseconds: UInt64(pollIntervalMs) * 1_000_000
-                )
+                try? await Task.sleep(nanoseconds: UInt64(pollIntervalMs) * 1_000_000)
                 continue
             }
 
-            // 2) 사이즈 안정성 체크
             let size = currentSize()
             if size != lastSize {
                 lastSize = size
-                lastChange = Date()
+                lastChange = now
             }
 
-            let stableFor = Date().timeIntervalSince(lastChange) * 1000
-            let stableEnough = stableFor >= Double(stableWindowMs)
+            let stableForMs = now.timeIntervalSince(lastChange) * 1000
+            let stableEnough = stableForMs >= Double(stableWindowMs)
 
-            // 3) AVURLAsset 로딩 가능 여부 확인 (오디오 트랙 로드)
             if stableEnough && size > 0 {
                 let asset = AVURLAsset(url: url)
                 do {
                     let tracks = try await asset.load(.tracks)
                     let hasAudio = tracks.contains { $0.mediaType == .audio }
                     if hasAudio {
-                        logger.log(
-                            "[waitUntilFileReady] ready url=\(url.lastPathComponent) size=\(size)B"
-                        )
+                        logger.log("[waitUntilFileReady] ready url=\(url.lastPathComponent) size=\(size)B")
                         return url
                     } else {
-                        logger.log(
-                            "[waitUntilFileReady] no audio tracks yet. size=\(size)B"
-                        )
+                        logger.log("[waitUntilFileReady] no audio tracks yet. size=\(size)B")
                     }
                 } catch {
                     let ns = error as NSError
-                    logger.log(
-                        "[waitUntilFileReady] asset.load(.tracks) error \(ns.domain)(\(ns.code)): \(ns.localizedDescription)"
-                    )
+                    logger.log("[waitUntilFileReady] asset.load(.tracks) error \(ns.domain)(\(ns.code)): \(ns.localizedDescription)")
                 }
             }
 
-            try? await Task.sleep(
-                nanoseconds: UInt64(pollIntervalMs) * 1_000_000
-            )
+            try? await Task.sleep(nanoseconds: UInt64(pollIntervalMs) * 1_000_000)
         }
 
         throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
