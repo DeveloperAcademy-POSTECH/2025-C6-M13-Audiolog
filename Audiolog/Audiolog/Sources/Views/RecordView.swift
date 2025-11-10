@@ -18,6 +18,7 @@ struct RecordView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var showToast: Bool = false
+    @Binding var isRecordCreated: Bool
 
     var body: some View {
         NavigationStack {
@@ -94,6 +95,7 @@ struct RecordView: View {
         modelContext.insert(recording)
         do {
             try modelContext.save()
+            await MainActor.run { isRecordCreated = true }
             logger.log(
                 "[RecordView] Saved Recording to SwiftData (scenePhase). url=\(url.lastPathComponent), duration=\(recording.duration)"
             )
@@ -152,6 +154,7 @@ struct RecordView: View {
                     modelContext.insert(recording)
                     do {
                         try modelContext.save()
+                        await MainActor.run { isRecordCreated = true }
                         logger.log(
                             "[RecordView] Saved Recording to SwiftData. url=\(url.lastPathComponent), duration=\(recording.duration))"
                         )

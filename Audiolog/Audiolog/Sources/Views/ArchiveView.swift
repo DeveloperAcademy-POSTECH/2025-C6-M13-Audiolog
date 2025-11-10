@@ -16,6 +16,8 @@ struct ArchiveView: View {
         SortDescriptor<Recording>(\Recording.createdAt, order: .reverse)
     ]) private var recordings: [Recording]
 
+    @Binding var isRecordCreated: Bool
+
     var body: some View {
         NavigationStack {
             List {
@@ -32,10 +34,13 @@ struct ArchiveView: View {
                                 .font(.title2)
                                 .foregroundStyle(.blue)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(item.isTitleGenerated && !item.title.isEmpty ? item.title : "제목 생성중")
-                                        .font(.headline)
-                                        .lineLimit(1)
-                                        .opacity(item.isTitleGenerated ? 1 : 0.6)
+                                Text(
+                                    item.isTitleGenerated && !item.title.isEmpty
+                                        ? item.title : "제목 생성중"
+                                )
+                                .font(.headline)
+                                .lineLimit(1)
+                                .opacity(item.isTitleGenerated ? 1 : 0.6)
                                 HStack(spacing: 8) {
                                     Text(item.formattedDuration)
                                     Text("·")
@@ -55,6 +60,9 @@ struct ArchiveView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("녹음 목록")
             .navigationBarTitleDisplayMode(.inline)
+        }
+        .onAppear {
+            if isRecordCreated { isRecordCreated = false }
         }
     }
 
