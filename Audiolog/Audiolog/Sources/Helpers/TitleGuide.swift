@@ -23,9 +23,8 @@ enum TitleGuide {
         let ctxObj = TitleContext(recording: recording, weights: tagWeights)
         let ctxJSON = ctxObj.toJSON()
 
-        let prompt = buildPromptWithPolicy(
+        let prompt = buildUserPrompt(
             contextJSON: ctxJSON,
-            policy: policy,
             hasWalkingCues: ctxObj.hasWalkingCues,
             primaryTag: ctxObj.primaryTag ?? ""
         )
@@ -279,74 +278,32 @@ private enum TitlePolicyLoader {
 
 // MARK: - Prompt Builder (Policy → ICL few-shot)
 
-private func buildPromptWithPolicy(
+private func buildUserPrompt(
     contextJSON: String,
-    policy: TitlePolicy,
     hasWalkingCues: Bool,
     primaryTag: String
 ) -> String {
 
-    let guardrails = policy.guardrails.map { "• \($0) (권장)" }.joined(
-        separator: "\n"
-    )
-    let shots = makeFewShots(from: policy)
-    let shotBlock = shots.map { "입력: \($0.inputJSON)\n출력: \($0.output)" }
-        .joined(separator: "\n\n")
+    let walkLine = hasWalkingCues
+    ? "- 보행 단서 충분: ‘산책/걷기’ 류 표현 사용 가능."
+    : "- 보행 단서 부족: ‘산책/걷기’ 류 표현 사용 금지."
 
-    // 🔹 금지 규칙(하드 가드)
-    let hardBans = """
-        금지 규칙(MUST NOT):
-        - 입력 JSON에 '위치'가 없으면 지명/장소(예: 부산, 해운대, 서울, 카페 등)를 절대 쓰지 말 것.
-        - 입력 JSON에 '음성유무'가 false면 '대화/회의/인터뷰/혼잣말' 등 말 관련 단어를 절대 쓰지 말 것.
-        - 입력 JSON에 '물/파도허용'이 false면 '파도/바다/해변' 관련 단어를 절대 쓰지 말 것.
-        - 입력에 없는 인명/행사명/지명/노래제목/가수 등을 절대 창작하지 말 것.
-        - 태그 비중이 12% 미만인 항목의 단어를 제목에 직접 쓰지 말 것(분위기 힌트는 가능).
-        """
-
-    let walkLine =
-        hasWalkingCues
-        ? "- ‘산책’ 표현 사용 가능(보행 단서 충분)."
-        : "- ‘산책’ 금지(보행 단서 부족). ‘대화/소리’ 등으로 표현."
-    let speechBias =
-        policy.speechBias.enableWhenPrimaryTagEquals.contains {
-            primaryTag.lowercased().contains($0.lowercased())
-        }
-        ? "- 주태그가 ‘speech’이면, 음성비율이 충분할 때(≥20~25%) 제목을 대화/회의/인터뷰 축으로 유도."
-        : ""
-
-    // 비중 기반 작문 원칙(모델에 수치 감각 심어주기)
-    let ratioPrinciples = """
-        비중(태그비율) 원칙:
-        - 주태그 비율이 35% 이상이면, 그 주태그를 제목의 핵심 콘셉트로 **반드시** 반영.
-        - 20~35% 구간은 가급적 반영하되, 다른 신호(전사/위치/특수케이스)와 조화롭게 선택.
-        - 12% 미만인 태그는 단어를 직접 쓰지 말고, 분위기 힌트로만 사용.
-        """
+    // primaryTag가 speech 계열이면 ‘이번 턴’ 스피치 힌트만 살짝
+    let maybeSpeechHint = primaryTag.lowercased().contains("speech")
+    ? "- 주태그가 speech: 음성 비율이 충분할 때 대화/회의/인터뷰 축 선호."
+    : ""
 
     return """
-        모든 입출력은 한국어(ko-KR)로 작성합니다.
+    아래는 이번 녹음의 컨텍스트(JSON)입니다.
+    \(contextJSON)
 
-        제목 작성 지향(소프트 가이드):
-        \(guardrails)
+    동적 규칙(이번 턴 전용):
+    \(walkLine)
+    \(maybeSpeechHint)
 
-        \(hardBans)
-
-        \(ratioPrinciples)
-
-        태그 우선순위(권장):
-        - 주태그(primary)가 제목의 핵심 콘셉트가 되도록 지향.
-        - 부태그/힌트태그는 분위기 보조. 힌트로 새로운 맥락 생성 금지.
-        \(walkLine)
-        \(speechBias)
-
-        예시(Few-shot, 참고용):
-        \(shotBlock)
-
-        입력(JSON):
-        \(contextJSON)
-
-        위 지향과 금지 규칙을 모두 준수하여 자연스럽고 간결한 **한국어 한 문장** 제목만 출력하세요.
-        따옴표/이모지/해시태그/접두 라벨/줄바꿈 금지.
-        """
+    위 컨텍스트를 반영하여 자연스럽고 간결한 한국어 한 문장 제목만 출력하세요.
+    (출력은 한 줄, 형식 규칙은 이미 시스템에 설정되어 있음)
+    """
 }
 
 private func makeFewShots(from policy: TitlePolicy) -> [(
