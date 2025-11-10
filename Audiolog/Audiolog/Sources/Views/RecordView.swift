@@ -22,15 +22,22 @@ struct RecordView: View {
     var body: some View {
         NavigationStack {
             ZStack {
+                Rectangle()
+                    .foregroundColor(.sub)
+                    .frame(width: 400, height: 400)
+                    .cornerRadius(350)
+                    .blur(radius: 100)
+                    .offset(x: -100, y: -320)
+
                 VStack {
-                    Title(
+                    Title3(
                         text: audioRecorder.isRecording
                             ? formattedDateString(
                                 fromPTS: audioRecorder.firstBufferPTS
                             )
-                            : "오늘의 로그를 남겨볼까요?"
+                            : "기억하고 싶은 소리를\n담아보세요"
                     )
-                    .padding(.top, 44)
+                    .padding(.top, 30)
                     Spacer()
                 }
 
@@ -44,11 +51,18 @@ struct RecordView: View {
                     .opacity(showToast ? 1 : 0)
                     .offset(y: -98)
 
+                Circle()
+                    .fill(.main)
+                    .frame(width: 100, height: 100)
+                    .blur(radius: 44)
+                    .offset(x: 0, y: 0)
+
                 Button {
                     handleRecordButtonTapped()
                 } label: {
                     MicButtonLabel(isRecording: audioRecorder.isRecording)
                 }
+                .offset(x: 0, y: 0)
             }
             .onAppear {
                 audioRecorder.setupCaptureSession()
@@ -233,11 +247,15 @@ struct RecordView: View {
             let now = Date()
 
             if now.timeIntervalSince(start) >= timeout {
-                throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
+                throw APFailure(
+                    "타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))"
+                )
             }
 
             guard fm.fileExists(atPath: url.path) else {
-                try? await Task.sleep(nanoseconds: UInt64(pollIntervalMs) * 1_000_000)
+                try? await Task.sleep(
+                    nanoseconds: UInt64(pollIntervalMs) * 1_000_000
+                )
                 continue
             }
 
@@ -256,18 +274,26 @@ struct RecordView: View {
                     let tracks = try await asset.load(.tracks)
                     let hasAudio = tracks.contains { $0.mediaType == .audio }
                     if hasAudio {
-                        logger.log("[waitUntilFileReady] ready url=\(url.lastPathComponent) size=\(size)B")
+                        logger.log(
+                            "[waitUntilFileReady] ready url=\(url.lastPathComponent) size=\(size)B"
+                        )
                         return url
                     } else {
-                        logger.log("[waitUntilFileReady] no audio tracks yet. size=\(size)B")
+                        logger.log(
+                            "[waitUntilFileReady] no audio tracks yet. size=\(size)B"
+                        )
                     }
                 } catch {
                     let ns = error as NSError
-                    logger.log("[waitUntilFileReady] asset.load(.tracks) error \(ns.domain)(\(ns.code)): \(ns.localizedDescription)")
+                    logger.log(
+                        "[waitUntilFileReady] asset.load(.tracks) error \(ns.domain)(\(ns.code)): \(ns.localizedDescription)"
+                    )
                 }
             }
 
-            try? await Task.sleep(nanoseconds: UInt64(pollIntervalMs) * 1_000_000)
+            try? await Task.sleep(
+                nanoseconds: UInt64(pollIntervalMs) * 1_000_000
+            )
         }
 
         throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")

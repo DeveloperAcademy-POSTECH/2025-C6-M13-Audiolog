@@ -13,12 +13,11 @@ struct Title3: View {
     var body: some View {
         HStack {
             Text(text)
-                .font(.title2.bold())
-                .foregroundStyle(.secondary)
+                .font(.title.bold())
+                .foregroundStyle(.lbl1)
             Spacer()
         }
-        .padding(.leading, 20)
-        .padding(.trailing, 10)
+        .padding(.horizontal, 30)
         .padding(.vertical, 10)
     }
 }
