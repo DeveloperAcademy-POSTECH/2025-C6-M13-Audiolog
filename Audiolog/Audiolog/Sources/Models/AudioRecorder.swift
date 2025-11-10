@@ -217,7 +217,7 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             self.isRecordForCallBacks = false
             DispatchQueue.main.async {
                 self.isRecording = false
-                self.timeElapsed = 0
+//                self.timeElapsed = 0 -> 끝날때 초 0초되는 현상 제거
                 self.firstBufferPTS = nil
             }
         }
