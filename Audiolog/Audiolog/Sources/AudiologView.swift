@@ -71,10 +71,6 @@ struct AudiologView: View {
         }
     }
 
-    private func pendingRecordings() -> [Recording] {
-        recordings.filter { !$0.isTitleGenerated || $0.title.isEmpty }
-    }
-
     @MainActor
     private func reprocessPendingTitlesIfNeeded() async {
         guard !isReprocessingPending else { return }
@@ -100,5 +96,9 @@ struct AudiologView: View {
             await processor.processAudio(for: rec, modelContext: modelContext)
         }
         logger.log("[AudiologView] Reprocess done.")
+    }
+    
+    private func pendingRecordings() -> [Recording] {
+        recordings.filter { !$0.isTitleGenerated || $0.title.isEmpty }
     }
 }
