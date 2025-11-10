@@ -55,4 +55,8 @@ extension Recording {
         let seconds = Int(duration) % 60
         return String(format: "%d:%02d", minutes, seconds)
     }
+
+    var displayTitle: String {
+        (isTitleGenerated && !title.isEmpty) ? title : "제목 생성중"
+    }
 }

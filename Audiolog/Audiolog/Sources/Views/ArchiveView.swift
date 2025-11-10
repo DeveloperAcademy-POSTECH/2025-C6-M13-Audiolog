@@ -32,9 +32,10 @@ struct ArchiveView: View {
                                 .font(.title2)
                                 .foregroundStyle(.blue)
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(item.title)
+                                Text(item.displayTitle)
                                     .font(.headline)
                                     .lineLimit(1)
+                                    .opacity(item.isTitleGenerated ? 1 : 0.6)
                                 HStack(spacing: 8) {
                                     Text(item.formattedDuration)
                                     Text("·")

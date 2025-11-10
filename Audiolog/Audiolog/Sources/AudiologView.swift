@@ -10,13 +10,16 @@ import SwiftUI
 
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
-    
+
+    @Environment(\.modelContext) private var modelContext
+
     @Query(sort: [
         SortDescriptor<Recording>(\Recording.createdAt, order: .reverse)
     ]) private var recordings: [Recording]
 
     @State private var currentTab = "Record"
     @State private var isPresentingPlayerSheet: Bool = false
+    @State private var isReprocessingPending = false
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -64,7 +67,38 @@ struct AudiologView: View {
         }
         .environment(audioPlayer)
         .task {
-            // TODO: recordings에서 isGenerated false인거 있으면 그거 엘리안 슈퍼세트 돌리기
+            await reprocessPendingTitlesIfNeeded()
         }
+    }
+
+    private func pendingRecordings() -> [Recording] {
+        recordings.filter { !$0.isTitleGenerated || $0.title.isEmpty }
+    }
+
+    @MainActor
+    private func reprocessPendingTitlesIfNeeded() async {
+        guard !isReprocessingPending else { return }
+        let targets = pendingRecordings()
+        guard !targets.isEmpty else { return }
+
+        isReprocessingPending = true
+        defer { isReprocessingPending = false }
+
+        logger.log(
+            "[AudiologView] Reprocess pending titles. count=\(targets.count)"
+        )
+
+        let fm = FileManager.default
+        for rec in targets {
+            guard fm.fileExists(atPath: rec.fileURL.path) else {
+                logger.log(
+                    "[AudiologView] Skip reprocess (file missing): \(rec.fileURL.lastPathComponent)"
+                )
+                continue
+            }
+            let processor = AudioProcesser()
+            await processor.processAudio(for: rec, modelContext: modelContext)
+        }
+        logger.log("[AudiologView] Reprocess done.")
     }
 }
