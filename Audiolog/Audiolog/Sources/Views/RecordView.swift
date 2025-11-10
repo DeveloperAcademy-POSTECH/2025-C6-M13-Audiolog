@@ -56,6 +56,15 @@ struct RecordView: View {
                 }
             }
             .onAppear {
+                locationManager.onLocationUpdate = { location, address in
+                    self.currentLocation = address
+                    Task {
+                        self.currentWeather =
+                            try await weatherManager.getWeather(
+                                location: location
+                            )
+                    }
+                }
                 audioRecorder.setupCaptureSession()
                 locationManager.requestLocation()
             }
@@ -136,17 +145,10 @@ struct RecordView: View {
                     logger.log(
                         "[RecordView] Will insert Recording. url=\(url.absoluteString), duration=\(audioRecorder.timeElapsed))"
                     )
-                    
-                    locationManager.onLocationUpdate = { location, address in
-                        self.currentLocation = address
-                        Task {
-                            self.currentWeather =
-                                try await weatherManager.getWeather(
-                                    location: location
-                                )
-                        }
-                    }
 
+                    locationManager.requestLocation()
+                    print(currentWeather)
+                    
                     let recording = Recording(
                         fileURL: url,
                         duration: audioRecorder.timeElapsed,

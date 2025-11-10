@@ -5,8 +5,8 @@
 //  Created by Seungeun Park on 11/10/25.
 //
 
-import Foundation
 import CoreLocation
+import Foundation
 
 class LocationManager: NSObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
@@ -23,26 +23,33 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
     }
 
     func requestLocation() {
-            let status = locationManager.authorizationStatus
-            switch status {
-            case .notDetermined:
-                locationManager.requestWhenInUseAuthorization()
-            case .restricted, .denied:
-                onError?("위치 권한 거부됨")
-            case .authorizedWhenInUse, .authorizedAlways:
-                locationManager.requestLocation()
-            @unknown default:
-                onError?("알 수 없는 에러")
-            }
+        let status = locationManager.authorizationStatus
+        switch status {
+        case .notDetermined:
+            locationManager.requestWhenInUseAuthorization()
+        case .restricted, .denied:
+            onError?("위치 권한 거부됨")
+        case .authorizedWhenInUse, .authorizedAlways:
+            locationManager.requestLocation()
+        @unknown default:
+            onError?("알 수 없는 에러")
         }
+    }
 
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+    func locationManager(
+        _ manager: CLLocationManager,
+        didUpdateLocations locations: [CLLocation]
+    ) {
         guard let location = locations.first else { return }
 
         let locale = Locale(identifier: "ko-KR")
-        geocoder.reverseGeocodeLocation(location, preferredLocale: locale) { placemarks, error in
+        geocoder.reverseGeocodeLocation(location, preferredLocale: locale) {
+            placemarks,
+            error in
             guard error == nil, let place = placemarks?.first else {
-                self.onError?("주소 변환 실패: \(error?.localizedDescription ?? "알 수 없음")")
+                self.onError?(
+                    "주소 변환 실패: \(error?.localizedDescription ?? "알 수 없음")"
+                )
                 return
             }
 
@@ -68,13 +75,18 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
                 landmarks.append(contentsOf: pois)
             }
 
-            let fullAddress = address + (landmarks.isEmpty ? "" : landmarks.joined(separator: ", "))
+            let fullAddress =
+                address
+                + (landmarks.isEmpty ? "" : landmarks.joined(separator: ", "))
 
             self.onLocationUpdate?(location, fullAddress)
         }
     }
 
-    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    func locationManager(
+        _ manager: CLLocationManager,
+        didFailWithError error: Error
+    ) {
         onError?("위치 가져오기 실패")
         // 에러 처리 고민하기
     }
