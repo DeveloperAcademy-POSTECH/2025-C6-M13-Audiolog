@@ -48,7 +48,7 @@ struct ArchiveView: View {
                     ForEach(recordings) { item in
                         HStack {
                             VStack(alignment: .leading, spacing: 5) {
-                                if editingId == item.id {
+                                if editingId == item.id && !isSelecting {
                                     TextField("제목", text: $tempTitle)
                                         .focused($isEditingFocused)
                                         .submitLabel(.done)
@@ -102,8 +102,8 @@ struct ArchiveView: View {
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
                             .accessibilityHidden(true)
+                            .disabled(isSelecting || editingId != nil)
                         }
-                        .tag(item.id)
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 15)
                                 .fill(.listBg)
@@ -113,7 +113,7 @@ struct ArchiveView: View {
                         .padding(.vertical, 5)
                         .padding(.horizontal, 20)
                         .onTapGesture {
-                            guard editingId == nil else { return }
+                            guard editingId == nil, !isSelecting else { return }
                             Task { @MainActor in
                                 audioPlayer.setPlaylist(recordings)
                                 audioPlayer.load(item)
@@ -121,22 +121,24 @@ struct ArchiveView: View {
                             }
                         }
                         .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            Button {
-                                toggleFavorite(item)
-                            } label: {
-                                VStack {
-                                    Image(
-                                        systemName: item.isFavorite
+                            if !isSelecting && editingId == nil {
+                                Button {
+                                    toggleFavorite(item)
+                                } label: {
+                                    VStack {
+                                        Image(
+                                            systemName: item.isFavorite
                                             ? "star.slash" : "star.fill"
-                                    )
-                                    Text(item.isFavorite ? "해제" : "즐겨찾기")
+                                        )
+                                        Text(item.isFavorite ? "해제" : "즐겨찾기")
+                                    }
                                 }
+                                .tint(.main)
                             }
-                            .tint(.main)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             if !isSelecting && editingId == nil {
-                                Button {
+                                Button(role: .destructive) {
                                     pendingDelete = item
                                     isShowingDeleteAlert = true
                                 } label: {
@@ -164,6 +166,7 @@ struct ArchiveView: View {
                                 .tint(.purple1)
                             }
                         }
+                        .tag(item.id)
                     }
                 }
             }
@@ -184,8 +187,9 @@ struct ArchiveView: View {
                 Text("삭제를 하면 되돌릴 수 없어요.")
             }
             .navigationTitle(navTitle)
-//            .toolbarTitleDisplayMode(.inlineLarge)
+            //            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
+            .environment( \.editMode, .constant(isSelecting ? .active : .inactive) )
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(isSelecting ? "취소" : "선택") {
@@ -278,7 +282,7 @@ struct ArchiveView: View {
         delete(targets)
         selection.removeAll()
     }
-    
+
     private func selectAll() {
         // 비어 있으면 할 일 없음
         guard !recordings.isEmpty else {
