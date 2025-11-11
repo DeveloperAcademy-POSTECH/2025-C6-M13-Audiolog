@@ -17,7 +17,7 @@ struct AudiologView: View {
         SortDescriptor<Recording>(\Recording.createdAt, order: .reverse)
     ]) private var recordings: [Recording]
 
-    @State private var currentTab = "Archive" //TODO: 원상복구
+    @State private var currentTab = "녹음"
     @State private var isPresentingPlayerSheet: Bool = false
     @State private var isReprocessingPending = false
     @State private var isRecordCreated: Bool = false
@@ -25,34 +25,34 @@ struct AudiologView: View {
     var body: some View {
         TabView(selection: $currentTab) {
             Tab(
-                "Record",
+                "녹음",
                 systemImage: "microphone",
-                value: "Record"
+                value: "녹음"
             ) {
                 RecordView(isRecordCreated: $isRecordCreated)
             }
 
             Tab(
-                "Archive",
-                systemImage: "rectangle.split.2x2.fill",
-                value: "Archive"
+                "전체 로그",
+                systemImage: "play.square.stack.fill",
+                value: "전체 로그"
             ) {
                 ArchiveView(isRecordCreated: $isRecordCreated)
             }
             .badge(isRecordCreated ? Text("N") : nil)
 
             Tab(
-                "Recap",
-                systemImage: "star.fill",
-                value: "Recap"
+                "추천 로그",
+                systemImage: "rectangle.split.2x2.fill",
+                value: "추천 로그"
             ) {
                 RecapView()
             }
 
             Tab(
-                "Search",
+                "검색",
                 systemImage: "magnifyingglass",
-                value: "Search",
+                value: "검색",
                 role: .search
             ) {
                 SearchView()
