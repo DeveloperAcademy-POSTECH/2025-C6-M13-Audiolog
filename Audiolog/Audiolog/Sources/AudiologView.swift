@@ -17,7 +17,7 @@ struct AudiologView: View {
         SortDescriptor<Recording>(\Recording.createdAt, order: .reverse)
     ]) private var recordings: [Recording]
 
-    @State private var currentTab = "Record"
+    @State private var currentTab = "Archive" //TODO: 원상복구
     @State private var isPresentingPlayerSheet: Bool = false
     @State private var isReprocessingPending = false
     @State private var isRecordCreated: Bool = false
@@ -64,7 +64,7 @@ struct AudiologView: View {
                 MiniPlayerView()
             }
             .frame(maxWidth: .infinity)
-            .padding(.bottom, 62)
+            .padding(.bottom, 58)
             .padding(.horizontal, 20)
         }
         .environment(audioPlayer)
