@@ -13,6 +13,7 @@ import SoundAnalysis
 import Speech
 import SwiftData
 import UniformTypeIdentifiers
+import ShazamKit
 
 @Observable
 class AudioProcesser: NSObject {
@@ -162,9 +163,32 @@ class AudioProcesser: NSObject {
             }
 
             // TODO: music, singing일 때, 샤잠킷 구동하는 부분
+            let lowerTop5 = top5.map { $0.lowercased() }
+            let looksLikeMusic = lowerTop5.contains(where: { $0.contains("music") || $0.contains("singing") || $0.contains("instrument") || $0.contains("song") || $0.contains("drum") || $0.contains("guitar") })
 
-            // 4) 타이틀 생성
-            logStep(4, "타이틀 생성 시작(TitleGuide)", [:])
+            if looksLikeMusic {
+                logStep(4, "ShazamKit 매칭 시작", ["url": safeURL.lastPathComponent])
+                do {
+                    if let item = try await identifyMusic(from: safeURL) {
+                        // Recording 모델에 맞춰 갱신 (필드명은 프로젝트에 맞게 조정)
+                        recording.bgmTitle = item.title ?? recording.bgmTitle
+                        recording.bgmArtist = item.artist ?? recording.bgmArtist
+
+                        // 참고로 Shazam 메타데이터 더 있음
+                        logger.log("[AudioProcesser] (4.5) ShazamKit 매칭: \(item.title ?? "?") - \(item.artist ?? "?")")
+                        try? modelContext.save()
+                    } else {
+                        logger.log("[AudioProcesser] (4.5) ShazamKit 매칭 결과 없음")
+                    }
+                } catch {
+                    logNSError(error, prefix: "(4.5) ShazamKit")
+                }
+            } else {
+                logger.log("[AudioProcesser] (4.5) 음악 신호 낮음 → ShazamKit 스킵")
+            }
+
+            // 5) 타이틀 생성
+            logStep(5, "타이틀 생성 시작(TitleGuide)", [:])
             if let title = await TitleGuide.generateTitle(
                 for: recording,
                 using: session,
@@ -182,9 +206,9 @@ class AudioProcesser: NSObject {
             }
 
             // 5) 최종 저장
-            logStep(5, "최종 저장 시작", [:])
+            logStep(6, "최종 저장 시작", [:])
             try modelContext.save()
-            logStep(5, "최종 저장 완료", ["recordingId": recording.id.uuidString])
+            logStep(6, "최종 저장 완료", ["recordingId": recording.id.uuidString])
 
         } catch {
             // 실패는 조용히 로깅 수준으로 처리. 필요 시 에러 전달 구조로 확장 가능.
@@ -424,7 +448,137 @@ class AudioProcesser: NSObject {
 
     // MARK: Music identifier
     // TODO: 샤잠킷 함수
+    private func identifyMusic(from url: URL) async throws -> SHMatchedMediaItem? {
+        // 1) 서명
+        let signature = try makeSignature(from: url)
 
+        // 2) SHSession 비동기 래핑
+        return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<SHMatchedMediaItem?, Error>) in
+            let session = SHSession()
+            let delegate = ShazamDelegate { result in
+                switch result {
+                case .success(let item):
+                    cont.resume(returning: item)
+                case .failure(let error):
+                    // SHError 디코딩 로깅
+                    let ns = error as NSError
+                    logger.log("[AudioProcesser] (4.5) ShazamKit 실패: domain=\(ns.domain) code=\(ns.code) msg=\(ns.localizedDescription) userInfo=\(ns.userInfo)")
+                    cont.resume(throwing: error)
+                }
+            }
+            session.delegate = delegate
+            delegate.retainCycle = (session, delegate)
+
+            // 안전 로깅
+            logger.log("[AudioProcesser] (4) SHSession.match 시작")
+
+            session.match(signature)
+        }
+    }
+
+
+    private func makeSignature(from url: URL) throws -> SHSignature {
+        let file = try AVAudioFile(forReading: url)
+
+        // 타깃 포맷: 44.1kHz, 모노, Float32, deinterleaved
+        let targetFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 44100,
+            channels: 1,
+            interleaved: false
+        )!
+
+        let srcFormat = file.processingFormat
+        let converter = AVAudioConverter(from: srcFormat, to: targetFormat)
+        guard let converter else { throw APFailure("오디오 포맷 변환기 생성 실패") }
+
+        let gen = SHSignatureGenerator()
+        let blockFrames: AVAudioFrameCount = 4096
+
+        // 입력/출력 버퍼 준비
+        guard
+            let srcBuf = AVAudioPCMBuffer(pcmFormat: srcFormat, frameCapacity: blockFrames),
+            let dstBuf = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: blockFrames)
+        else { throw APFailure("PCMBuffer 생성 실패") }
+
+        // 전체 길이 체크 (대략 3~5초 이상 권장)
+        let minFrames = AVAudioFramePosition(targetFormat.sampleRate * 3.0)
+        var totalOutFrames: AVAudioFramePosition = 0
+
+        file.framePosition = 0
+        var isEOF = false
+
+        while !isEOF {
+            // 원본 읽기
+            do {
+                try file.read(into: srcBuf, frameCount: blockFrames)
+            } catch {
+                // 파일 끝나면 frameLength=0로 들어옴
+                if srcBuf.frameLength == 0 { isEOF = true; break }
+                throw error
+            }
+
+            if srcBuf.frameLength == 0 {
+                isEOF = true
+                break
+            }
+
+            // 변환 수행
+            dstBuf.frameLength = 0
+            let inputBlock: AVAudioConverterInputBlock = { inNumPackets, outStatus in
+                if srcBuf.frameLength == 0 {
+                    outStatus.pointee = .noDataNow
+                    return nil
+                }
+                outStatus.pointee = .haveData
+                return srcBuf
+            }
+
+            let status = converter.convert(to: dstBuf, error: nil, withInputFrom: inputBlock)
+            guard status != .error else { throw APFailure("오디오 변환 실패") }
+
+            if dstBuf.frameLength > 0 {
+                try gen.append(dstBuf, at: nil)
+                totalOutFrames += AVAudioFramePosition(dstBuf.frameLength)
+            }
+
+            // 다음 루프에서 입력 버퍼를 새로 채우도록 frameLength 0으로 리셋
+            srcBuf.frameLength = 0
+        }
+
+        if totalOutFrames < minFrames {
+            logger.log("[AudioProcesser] ShazamKit: 변환된 유효 오디오가 3초 미만(매칭 난이도↑)")
+        }
+
+        return gen.signature()
+    }
+
+
+    /// SHSessionDelegate 래퍼
+    private final class ShazamDelegate: NSObject, SHSessionDelegate {
+        typealias MatchHandler = (Result<SHMatchedMediaItem?, Error>) -> Void
+        private let handler: MatchHandler
+
+        // 세션/델리게이트가 조기 해제되지 않도록 보관
+        var retainCycle: (SHSession, ShazamDelegate)?
+
+        init(handler: @escaping MatchHandler) {
+            self.handler = handler
+        }
+
+        func session(_ session: SHSession, didFind match: SHMatch) {
+            // 가장 신뢰도 높은 첫 결과 사용 (필요 시 스코어/타임레인지 로직 확장)
+            let item = match.mediaItems.first
+            handler(.success(item))
+            retainCycle = nil
+        }
+
+        func session(_ session: SHSession, didNotFindMatchFor signature: SHSignature, error: Error?) {
+            if let error { handler(.failure(error)) }
+            else { handler(.success(nil)) }
+            retainCycle = nil
+        }
+    }
     // MARK: - Debug helpers
 
     /// 단계를 번호와 함께 기록
@@ -632,3 +786,4 @@ extension AudioProcesser {
         return items.joined(separator: "\n\n")
     }
 }
+
