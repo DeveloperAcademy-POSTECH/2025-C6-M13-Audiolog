@@ -36,10 +36,9 @@ struct MicButtonLabel: View {
                                 ]),
                                 center: .center
                             ),
-                            lineWidth: 3
+                            lineWidth: 2
                         )
                         .blur(radius: 0.4)
-                        .opacity(0.8)
                         .padding(1)
                         .rotationEffect(rotateAngle)
                 }
