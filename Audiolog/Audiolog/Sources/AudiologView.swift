@@ -86,16 +86,21 @@ struct AudiologView: View {
             "[AudiologView] Reprocess pending titles. count=\(targets.count)"
         )
 
-        let fm = FileManager.default
-        for rec in targets {
-            guard fm.fileExists(atPath: rec.fileURL.path) else {
+        let fileManager = FileManager.default
+        let documentURL = getDocumentURL()
+
+        for target in targets {
+            let fileName = target.fileName
+            let fileURL = documentURL.appendingPathComponent(fileName)
+
+            guard fileManager.fileExists(atPath: fileURL.path) else {
                 logger.log(
-                    "[AudiologView] Skip reprocess (file missing): \(rec.fileURL.lastPathComponent)"
+                    "[AudiologView] Skip reprocess (file missing): \(fileURL)"
                 )
                 continue
             }
             let processor = AudioProcesser()
-            await processor.processAudio(for: rec, modelContext: modelContext)
+            await processor.processAudio(for: target, modelContext: modelContext)
         }
         logger.log("[AudiologView] Reprocess done.")
     }

@@ -110,7 +110,7 @@ struct MiniPlayerView: View {
                     Text("재생 중이 아님")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.lbl2)
-                    
+
                     Spacer()
 
                     Image(

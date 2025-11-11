@@ -18,7 +18,7 @@ struct ArchiveView: View {
 
     @Binding var isRecordCreated: Bool
 
-    @State private var editingId: UUID? = nil
+    @State private var editingId: UUID?
     @State private var tempTitle: String = ""
     @FocusState private var isEditingFocused: Bool
 
@@ -127,12 +127,12 @@ struct ArchiveView: View {
         }
     }
 
-//    private func delete(at offsets: IndexSet) {
-//        let items = offsets.map { recordings[$0] }
-//        for item in items {
-//            modelContext.delete(item)
-//        }
-//    }
+    //    private func delete(at offsets: IndexSet) {
+    //        let items = offsets.map { recordings[$0] }
+    //        for item in items {
+    //            modelContext.delete(item)
+    //        }
+    //    }
 
     private func commitEdit(for item: Recording) {
         let newTitle = tempTitle.trimmingCharacters(in: .whitespacesAndNewlines)

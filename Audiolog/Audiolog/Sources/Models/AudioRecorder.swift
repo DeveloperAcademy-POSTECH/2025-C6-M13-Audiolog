@@ -25,7 +25,7 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
     var firstBufferPTS: CMTime?
 
     // 녹음된 오디오 파일의 URL
-    var fileURL: URL?
+    var fileName: String = ""
 
     // 앱의 AVAssetWriter
     private var assetWriter: AVAssetWriter?
@@ -217,7 +217,7 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             self.isRecordForCallBacks = false
             DispatchQueue.main.async {
                 self.isRecording = false
-//                self.timeElapsed = 0 -> 끝날때 초 0초되는 현상 제거
+                //                self.timeElapsed = 0 -> 끝날때 초 0초되는 현상 제거
                 self.firstBufferPTS = nil
             }
         }
@@ -283,11 +283,15 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             let stereoInput = assetWriterStereoAudioInput
         {
             // Establish first PTS and update elapsed time based on media timestamps
-            let currentPTS = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+            let currentPTS = CMSampleBufferGetPresentationTimeStamp(
+                sampleBuffer
+            )
             if self.firstBufferPTS == nil {
                 self.firstBufferPTS = currentPTS
             }
-            if let startPTS = self.firstBufferPTS, currentPTS.isValid, startPTS.isValid {
+            if let startPTS = self.firstBufferPTS, currentPTS.isValid,
+                startPTS.isValid
+            {
                 let elapsed = CMTimeSubtract(currentPTS, startPTS)
                 let seconds = CMTimeGetSeconds(elapsed)
                 if seconds.isFinite && seconds >= 0 {
@@ -314,13 +318,13 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                                 formatDesc!
                             )?.pointee
                         {
-//                            logger.log(
-//                                "Spatial buffer received - ts: \(pts) dur: \(dur) sampleRate: \(asbd.mSampleRate) channels: \(asbd.mChannelsPerFrame)"
-//                            )
+                            //                            logger.log(
+                            //                                "Spatial buffer received - ts: \(pts) dur: \(dur) sampleRate: \(asbd.mSampleRate) channels: \(asbd.mChannelsPerFrame)"
+                            //                            )
                         } else {
-//                            logger.log(
-//                                "Spatial buffer received - ts: \(pts) dur: \(dur) (no ASBD)"
-//                            )
+                            //                            logger.log(
+                            //                                "Spatial buffer received - ts: \(pts) dur: \(dur) (no ASBD)"
+                            //                            )
                         }
                         self.logFOADirection(from: sampleBuffer)
                         // 공간 오디오 입력에 샘플 버퍼 추가
@@ -330,9 +334,9 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
 
                 if stereoInput.isReadyForMoreMediaData {
                     if output == self.stereoAudioDataOutput {
-//                        logger.log(
-//                            "Stereo buffer received at: \(CMSampleBufferGetPresentationTimeStamp(sampleBuffer)) duration: \(CMSampleBufferGetDuration(sampleBuffer))"
-//                        )
+                        //                        logger.log(
+                        //                            "Stereo buffer received at: \(CMSampleBufferGetPresentationTimeStamp(sampleBuffer)) duration: \(CMSampleBufferGetDuration(sampleBuffer))"
+                        //                        )
                         // 스테레오 오디오 입력에 샘플 버퍼 추가
                         stereoInput.append(sampleBuffer)
                     }
@@ -343,20 +347,8 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
     }
 
     // 녹음 파일 URL을 생성하는 유틸리티 함수
-    private func generateURL() -> URL {
-        let fileManager = FileManager.default
-        guard
-            let documentsURL = fileManager.urls(
-                for: .documentDirectory,
-                in: .userDomainMask
-            ).first
-        else {
-            fatalError(
-                "The app failed to recieve a url to the document directory"
-            )
-        }
-        let randomFileName = UUID().uuidString + ".mp4"
-        let randomURL = documentsURL.appendingPathComponent(randomFileName)
+    private func generateFileName() -> String {
+        let randomURL = UUID().uuidString + ".mp4"
         return randomURL
     }
 
@@ -367,12 +359,10 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
     ) {
 
         // 녹음 파일 URL 생성 및 할당
-        let writableFileURL = generateURL()
-        self.fileURL = writableFileURL
+        self.fileName = generateFileName()
+        let documentURL = getDocumentURL()
 
-        guard let fileURL else {
-            fatalError("Unable to obtain file URL.")
-        }
+        let fileURL = documentURL.appendingPathComponent(fileName)
 
         do {
             // AVAssetWriter 생성
@@ -754,19 +744,19 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
         let elevation = atan2(nz, sqrt(nx * nx + ny * ny)) * 180.0 / .pi
 
         let ts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-//        logger.log(
-//            String(
-//                format:
-//                    "FOA DOA ~ ts:%@ xyz[%.3f, %.3f, %.3f] az/el[%.1f°, %.1f°] ch:%d bpf:%d",
-//                String(describing: ts),
-//                nx,
-//                ny,
-//                nz,
-//                azimuth,
-//                elevation,
-//                channels,
-//                bytesPerFrame
-//            )
-//        )
+        //        logger.log(
+        //            String(
+        //                format:
+        //                    "FOA DOA ~ ts:%@ xyz[%.3f, %.3f, %.3f] az/el[%.1f°, %.1f°] ch:%d bpf:%d",
+        //                String(describing: ts),
+        //                nx,
+        //                ny,
+        //                nz,
+        //                azimuth,
+        //                elevation,
+        //                channels,
+        //                bytesPerFrame
+        //            )
+        //        )
     }
 }
