@@ -48,7 +48,6 @@ struct SearchView: View {
                     if recentItems.isEmpty {
                         Text("최근 검색한 항목이 없습니다.")
                     } else {
-
                         List {
                             Section {
                                 ForEach(recentItems, id: \.self) { keyword in
