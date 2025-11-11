@@ -25,6 +25,11 @@ struct RecordView: View {
     @State private var showToast: Bool = false
     @Binding var isRecordCreated: Bool
 
+    private var pulsingOpacity: Double {
+        let t = audioRecorder.timeElapsed
+        return abs(sin(.pi * t / 3))
+    }
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -59,6 +64,7 @@ struct RecordView: View {
                         Circle().fill(.sub)
                             .frame(width: 8, height: 8)
                             .shadow(color: .sub, radius: 5)
+                            .opacity(pulsingOpacity)
 
                         Text(formatTime(audioRecorder.timeElapsed))
                             .font(.title.weight(.semibold))
@@ -111,7 +117,7 @@ struct RecordView: View {
             }
         }
     }
-
+    
     private func stopAndPersistRecordingOnScenePhaseChange() async {
         await audioRecorder.stopRecording()
         logger.log(
