@@ -106,26 +106,21 @@ struct MiniPlayerView: View {
                     }
                 }
             } else {
-                HStack {
+                HStack(alignment: .center) {
                     Text("재생 중이 아님")
-                        .font(.footnote)
-                        .fontWeight(.semibold)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.lbl2)
+                    
+                    Spacer()
 
-                    Button {
-                        if audioPlayer.isPlaying {
-                            audioPlayer.pause()
-                        } else {
-                            audioPlayer.play()
-                        }
-                    } label: {
-                        Image(
-                            systemName: audioPlayer.isPlaying
-                                ? "stop.fill" : "play.fill"
-                        )
-                        .font(.footnote)
-                        .contentShape(Rectangle())
-                    }
+                    Image(
+                        systemName: "play.fill"
+                    )
+                    .font(.system(size: 17))
+                    .foregroundStyle(.lbl2)
                 }
+                .padding(.horizontal, 20)
+                .frame(height: 48)
                 .frame(maxWidth: .infinity)
             }
         }
