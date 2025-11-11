@@ -10,19 +10,29 @@ import SwiftUI
 
 struct ArchiveView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
-
     @Environment(\.modelContext) private var modelContext
+
     @Query(sort: [
         SortDescriptor<Recording>(\Recording.createdAt, order: .reverse)
     ]) private var recordings: [Recording]
 
     @Binding var isRecordCreated: Bool
+    @Binding var isSelecting: Bool
 
     @State private var editingId: UUID?
     @State private var tempTitle: String = ""
     @FocusState private var isEditingFocused: Bool
     @State private var pendingDelete: Recording?
     @State private var isShowingDeleteAlert: Bool = false
+    @State private var selection = Set<UUID>()
+
+    private var navTitle: String {
+        if isSelecting {
+            return selection.isEmpty ? "전체 로그 항목" : "\(selection.count)개 선택됨"
+        } else {
+            return "녹음 목록"
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -34,7 +44,7 @@ struct ArchiveView: View {
                     .blur(radius: 100)
                     .offset(x: -100, y: -320)
 
-                List {
+                List(selection: $selection) {
                     ForEach(recordings) { item in
                         HStack {
                             VStack(alignment: .leading, spacing: 5) {
@@ -93,6 +103,7 @@ struct ArchiveView: View {
                             .contentShape(Rectangle())
                             .accessibilityHidden(true)
                         }
+                        .tag(item.id)
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 15)
                                 .fill(.listBg)
@@ -124,34 +135,34 @@ struct ArchiveView: View {
                             .tint(.main)
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button {
-                                pendingDelete = item
-                                isShowingDeleteAlert = true
-                            } label: {
-                                VStack {
-                                    Image(
-                                        systemName: "trash"
-                                    )
-                                    Text("삭제")
+                            if !isSelecting && editingId == nil {
+                                Button {
+                                    pendingDelete = item
+                                    isShowingDeleteAlert = true
+                                } label: {
+                                    VStack {
+                                        Image(
+                                            systemName: "trash"
+                                        )
+                                        Text("삭제")
+                                    }
                                 }
-                            }
-                            .tint(.red1)
-                            .disabled(editingId != nil)
+                                .tint(.red1)
 
-                            Button {
-                                editingId = item.id
-                                tempTitle = item.title
-                            } label: {
-                                VStack {
-                                    Image(
-                                        systemName: "pencil"
-                                    )
+                                Button {
+                                    editingId = item.id
+                                    tempTitle = item.title
+                                } label: {
+                                    VStack {
+                                        Image(
+                                            systemName: "pencil"
+                                        )
 
-                                    Text("수정")
+                                        Text("수정")
+                                    }
                                 }
+                                .tint(.purple1)
                             }
-                            .tint(.purple1)
-                            .disabled(editingId != nil)
                         }
                     }
                 }
@@ -172,21 +183,52 @@ struct ArchiveView: View {
             } message: {
                 Text("삭제를 하면 되돌릴 수 없어요.")
             }
-            .navigationTitle("전체 로그")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .navigationTitle(navTitle)
+//            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(isSelecting ? "취소" : "선택") {
+                        if isSelecting {
+                            selection.removeAll()
+                            isSelecting = false
+                            editingId = nil
+                            isEditingFocused = false
+                        } else {
+                            editingId = nil
+                            isEditingFocused = false
+                            isSelecting = true
+                        }
+                    }
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .bottomBar) {
+                    if isSelecting {
+                        Button {
+                            selectAll()
+                        } label: {
+                            Text("전체 선택")
+                        }
+
+                        Spacer()
+
+                        Button(role: .destructive) {
+                            deleteSelected()
+                        } label: {
+                            Label("삭제", systemImage: "trash")
+                                .fontWeight(.semibold)
+                        }
+                        .disabled(selection.isEmpty)
+                    }
+                }
+            }
             .scrollIndicators(.hidden)
         }
         .onAppear {
             if isRecordCreated { isRecordCreated = false }
         }
     }
-
-    //    private func delete(at offsets: IndexSet) {
-    //        let items = offsets.map { recordings[$0] }
-    //        for item in items {
-    //            modelContext.delete(item)
-    //        }
-    //    }
 
     private func commitEdit(for item: Recording) {
         let newTitle = tempTitle.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -217,12 +259,39 @@ struct ArchiveView: View {
         }
     }
 
-    private func deleteOne(_ item: Recording) {
-        modelContext.delete(item)
+    @MainActor private func delete(_ items: [Recording]) {
+        guard !items.isEmpty else { return }
+        for it in items { modelContext.delete(it) }
         do { try modelContext.save() } catch {
             logger.log(
                 "[ArchiveView] delete save failed: \(String(describing: error))"
             )
         }
     }
+
+    private func deleteOne(_ item: Recording) { delete([item]) }
+
+    private func deleteSelected() {
+        let targets = recordings.filter {
+            selection.contains($0.id)
+        }
+        delete(targets)
+        selection.removeAll()
+    }
+    
+    private func selectAll() {
+        // 비어 있으면 할 일 없음
+        guard !recordings.isEmpty else {
+            selection.removeAll()
+            return
+        }
+
+        // 전부 선택되어 있으면 해제, 아니면 모두 선택
+        if selection.count == recordings.count {
+            selection.removeAll()
+        } else {
+            selection = Set(recordings.map { $0.id })
+        }
+    }
+
 }
