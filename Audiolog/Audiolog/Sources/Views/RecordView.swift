@@ -13,11 +13,17 @@ import SwiftUI
 struct RecordView: View {
     @State private var audioRecorder = AudioRecorder()
 
-    // TODO: Weather, Location 관련 Manager 모셔오기
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.modelContext) private var modelContext
 
+    private let locationManager = LocationManager()
+    private let weatherManager = WeatherManager()
+
+    @State private var currentLocation = ""
+    @State private var currentWeather = ""
+
     @State private var showToast: Bool = false
+    @Binding var isRecordCreated: Bool
 
     var body: some View {
         NavigationStack {
@@ -76,7 +82,17 @@ struct RecordView: View {
                 }
             }
             .onAppear {
+                locationManager.onLocationUpdate = { location, address in
+                    self.currentLocation = address
+                    Task {
+                        self.currentWeather =
+                            try await weatherManager.getWeather(
+                                location: location
+                            )
+                    }
+                }
                 audioRecorder.setupCaptureSession()
+                locationManager.requestLocation()
             }
             .onDisappear {
                 if audioRecorder.isRecording {
@@ -119,6 +135,7 @@ struct RecordView: View {
         modelContext.insert(recording)
         do {
             try modelContext.save()
+            await MainActor.run { isRecordCreated = true }
             logger.log(
                 "[RecordView] Saved Recording to SwiftData (scenePhase). url=\(url.lastPathComponent), duration=\(recording.duration)"
             )
@@ -169,14 +186,18 @@ struct RecordView: View {
                         "[RecordView] Will insert Recording. url=\(url.absoluteString), duration=\(audioRecorder.timeElapsed))"
                     )
 
-                    // TODO: Location, Weather 넣기
+                    locationManager.requestLocation()
+
                     let recording = Recording(
                         fileURL: url,
-                        duration: audioRecorder.timeElapsed
+                        duration: audioRecorder.timeElapsed,
+                        weather: currentWeather,
+                        location: currentLocation
                     )
                     modelContext.insert(recording)
                     do {
                         try modelContext.save()
+                        await MainActor.run { isRecordCreated = true }
                         logger.log(
                             "[RecordView] Saved Recording to SwiftData. url=\(url.lastPathComponent), duration=\(recording.duration))"
                         )
