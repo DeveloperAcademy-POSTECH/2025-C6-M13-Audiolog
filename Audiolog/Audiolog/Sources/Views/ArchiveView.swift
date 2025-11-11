@@ -21,106 +21,160 @@ struct ArchiveView: View {
     @State private var editingId: UUID?
     @State private var tempTitle: String = ""
     @FocusState private var isEditingFocused: Bool
+    @State private var pendingDelete: Recording?
+    @State private var isShowingDeleteAlert: Bool = false
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(recordings) { item in
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            if editingId == item.id {
-                                TextField("제목", text: $tempTitle)
-                                    .focused($isEditingFocused)
-                                    .submitLabel(.done)
-                                    .onSubmit {
-                                        commitEdit(for: item)
-                                    }
-                                    .onAppear {
-                                        isEditingFocused = true
-                                    }
-                            } else {
-                                Text(
-                                    item.isTitleGenerated && !item.title.isEmpty
-                                        ? item.title : "제목 생성중"
+            ZStack {
+                Rectangle()
+                    .foregroundColor(.sub)
+                    .frame(width: 400, height: 400)
+                    .cornerRadius(350)
+                    .blur(radius: 100)
+                    .offset(x: -100, y: -320)
+
+                List {
+                    ForEach(recordings) { item in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 5) {
+                                if editingId == item.id {
+                                    TextField("제목", text: $tempTitle)
+                                        .focused($isEditingFocused)
+                                        .submitLabel(.done)
+                                        .onSubmit {
+                                            commitEdit(for: item)
+                                        }
+                                        .onAppear {
+                                            isEditingFocused = true
+                                        }
+                                } else {
+                                    Text(
+                                        item.isTitleGenerated
+                                            && !item.title.isEmpty
+                                            ? item.title : "제목 생성중.."
+                                    )
+                                    .font(.callout)
+                                    .foregroundStyle(
+                                        item.isTitleGenerated ? .lbl1 : .lbl3
+                                    )
+                                    .lineLimit(1)
+                                }
+
+                                HStack(spacing: 8) {
+                                    Text(
+                                        item.createdAt.formatted(
+                                            "M월 d일 EEEE, a h:mm"
+                                        )
+                                    )
+                                    Text("·")
+                                    Text(item.formattedDuration)
+                                }
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Button {
+                                toggleFavorite(item)
+                            } label: {
+                                Image(
+                                    uiImage: UIImage(
+                                        named: item.isFavorite
+                                            ? "FavoriteOn" : "FavoriteOff"
+                                    )!
                                 )
-                                .font(.headline)
-                                .lineLimit(1)
-                                .opacity(item.isTitleGenerated ? 1 : 0.6)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
                             }
-
-                            HStack(spacing: 8) {
-                                Text(item.formattedDuration)
-                                Text("·")
-                                Text(item.createdAt, style: .date)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                            .accessibilityHidden(true)
+                        }
+                        .listRowBackground(
+                            RoundedRectangle(cornerRadius: 15)
+                                .fill(.listBg)
+                                .padding(.horizontal, 20)
+                        )
+                        .listRowSeparator(.hidden)
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, 20)
+                        .onTapGesture {
+                            guard editingId == nil else { return }
+                            Task { @MainActor in
+                                audioPlayer.setPlaylist(recordings)
+                                audioPlayer.load(item)
+                                audioPlayer.play()
                             }
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
                         }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                toggleFavorite(item)
+                            } label: {
+                                VStack {
+                                    Image(
+                                        systemName: item.isFavorite
+                                            ? "star.slash" : "star.fill"
+                                    )
+                                    Text(item.isFavorite ? "해제" : "즐겨찾기")
+                                }
+                            }
+                            .tint(.main)
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button {
+                                pendingDelete = item
+                                isShowingDeleteAlert = true
+                            } label: {
+                                VStack {
+                                    Image(
+                                        systemName: "trash"
+                                    )
+                                    Text("삭제")
+                                }
+                            }
+                            .tint(.red1)
+                            .disabled(editingId != nil)
 
-                        Spacer()
+                            Button {
+                                editingId = item.id
+                                tempTitle = item.title
+                            } label: {
+                                VStack {
+                                    Image(
+                                        systemName: "pencil"
+                                    )
 
-                        // ⭐️ 즐겨찾기 (VoiceOver 포커스 제외)
-                        Button {
-                            toggleFavorite(item)
-                        } label: {
-                            Image(
-                                systemName: item.isFavorite
-                                    ? "star.fill" : "star"
-                            )
-                            .imageScale(.large)
-                            .font(.title3)
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 4)
+                                    Text("수정")
+                                }
+                            }
+                            .tint(.purple1)
+                            .disabled(editingId != nil)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityHidden(true)  // 보이스오버 포커싱 제외
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        guard editingId == nil else { return }
-                        Task { @MainActor in
-                            audioPlayer.setPlaylist(recordings)
-                            audioPlayer.load(item)
-                            audioPlayer.play()
-                        }
-                    }
-
-                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        Button {
-                            toggleFavorite(item)
-                        } label: {
-                            Label(
-                                item.isFavorite ? "해제" : "즐겨찾기",
-                                systemImage: item.isFavorite
-                                    ? "star.slash" : "star.fill"
-                            )
-                        }
-                        .tint(item.isFavorite ? .gray : .yellow)
-                    }
-
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button {
-                            editingId = item.id
-                            tempTitle = item.title
-                        } label: {
-                            Label("수정", systemImage: "pencil")
-                        }
-                        .tint(.blue)
-                        .disabled(editingId != nil)
-
-                        Button(role: .destructive) {
-                            deleteOne(item)
-                        } label: {
-                            Label("삭제", systemImage: "trash")
-                        }
-                        .disabled(editingId != nil)
                     }
                 }
             }
-            .listStyle(.insetGrouped)
-            .navigationTitle("녹음 목록")
-            .navigationBarTitleDisplayMode(.inline)
+            .listStyle(.plain)
+            .listRowSpacing(10)
+            .scrollContentBackground(.hidden)
+            .alert("현재 녹음을 삭제하겠습니까?", isPresented: $isShowingDeleteAlert) {
+                Button("삭제", role: .destructive) {
+                    if let item = pendingDelete {
+                        deleteOne(item)
+                    }
+                    pendingDelete = nil
+                }
+                Button("취소", role: .cancel) {
+                    pendingDelete = nil
+                }
+            } message: {
+                Text("삭제를 하면 되돌릴 수 없어요.")
+            }
+            .navigationTitle("전체 로그")
+            .toolbarTitleDisplayMode(.inlineLarge)
+            .scrollIndicators(.hidden)
         }
         .onAppear {
             if isRecordCreated { isRecordCreated = false }
@@ -171,5 +225,4 @@ struct ArchiveView: View {
             )
         }
     }
-
 }
