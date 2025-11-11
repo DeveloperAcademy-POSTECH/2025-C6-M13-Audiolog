@@ -12,6 +12,7 @@ import SwiftUI
 
 struct RecordView: View {
     @State private var audioRecorder = AudioRecorder()
+    @State private var timelineStart: Date? = nil
 
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.modelContext) private var modelContext
@@ -37,14 +38,46 @@ struct RecordView: View {
                     .foregroundColor(.sub)
                     .frame(width: 400, height: 400)
                     .cornerRadius(350)
-                    .blur(radius: 100)
+                    .blur(radius: 150)
                     .offset(x: -100, y: -320)
 
                 Circle()
                     .fill(.main)
                     .frame(width: 100, height: 100)
-                    .blur(radius: 44)
+                    .blur(radius: 60)
                     .offset(x: 0, y: 0)
+
+                TimelineView(.animation(minimumInterval: 1.0/24.0, paused: !audioRecorder.isRecording)) { context in
+                    let startWaveFrameCount = 129
+                    let repeatWaveFrameCount = 59
+                    let fps: Double = 24
+
+                    let baseline = timelineStart ?? context.date
+                    let t = context.date.timeIntervalSince(baseline)
+
+                    let frameName: String = {
+                        guard audioRecorder.isRecording else { return "Record000" }
+                        let frameCount = Int(floor(t * fps))
+                        if frameCount > startWaveFrameCount {
+                            return String(format: "Record%02d", frameCount % repeatWaveFrameCount)
+                        } else {
+                            return String(format: "Record%03d", frameCount % startWaveFrameCount)
+                        }
+                    }()
+
+                    if let uiImage = UIImage(named: frameName) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: screenWidth, height: screenWidth)
+                            .accessibilityHidden(true)
+                    } else {
+                        EmptyView()
+                            .frame(width: screenWidth, height: screenWidth)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .offset(y: -30)
 
                 VStack {
                     Title3(
@@ -88,6 +121,7 @@ struct RecordView: View {
                 }
             }
             .onAppear {
+                if timelineStart == nil { timelineStart = Date() }
                 locationManager.onLocationUpdate = { location, address in
                     self.currentLocation = address
                     Task {
@@ -167,6 +201,7 @@ struct RecordView: View {
     private func handleRecordButtonTapped() {
         if audioRecorder.isRecording {
             Task {
+                timelineStart = nil
 
                 let fileName = audioRecorder.fileName
                 let documentURL = getDocumentURL()
@@ -236,6 +271,7 @@ struct RecordView: View {
         } else {
             logger.log("[RecordView] Starting recording...")
             audioRecorder.startRecording()
+            timelineStart = Date()
             logger.log(
                 "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
             )
@@ -336,3 +372,4 @@ struct RecordView: View {
         throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
     }
 }
+
