@@ -107,11 +107,9 @@ struct ArchiveView: View {
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 15)
                                 .fill(.listBg)
-                                .padding(.horizontal, 20)
                         )
                         .listRowSeparator(.hidden)
                         .padding(.vertical, 5)
-                        .padding(.horizontal, 20)
                         .onTapGesture {
                             guard editingId == nil, !isSelecting else { return }
                             Task { @MainActor in
@@ -138,7 +136,7 @@ struct ArchiveView: View {
                         }
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             if !isSelecting && editingId == nil {
-                                Button(role: .destructive) {
+                                Button {
                                     pendingDelete = item
                                     isShowingDeleteAlert = true
                                 } label: {
@@ -170,6 +168,7 @@ struct ArchiveView: View {
                     }
                 }
             }
+            .padding(.horizontal, 20)
             .listStyle(.plain)
             .listRowSpacing(10)
             .scrollContentBackground(.hidden)
@@ -193,15 +192,16 @@ struct ArchiveView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(isSelecting ? "취소" : "선택") {
-                        if isSelecting {
+                        withAnimation {
+                            isSelecting.toggle()
+                        }
+                        if !isSelecting {
                             selection.removeAll()
-                            isSelecting = false
                             editingId = nil
                             isEditingFocused = false
                         } else {
                             editingId = nil
                             isEditingFocused = false
-                            isSelecting = true
                         }
                     }
                 }
@@ -217,7 +217,7 @@ struct ArchiveView: View {
 
                         Spacer()
 
-                        Button(role: .destructive) {
+                        Button {
                             deleteSelected()
                         } label: {
                             Label("삭제", systemImage: "trash")
