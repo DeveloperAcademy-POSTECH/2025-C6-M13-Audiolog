@@ -20,6 +20,7 @@ struct AudiologView: View {
     @State private var currentTab = "Record"
     @State private var isPresentingPlayerSheet: Bool = false
     @State private var isReprocessingPending = false
+    @State private var isRecordCreated: Bool = false
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -28,7 +29,7 @@ struct AudiologView: View {
                 systemImage: "microphone",
                 value: "Record"
             ) {
-                RecordView()
+                RecordView(isRecordCreated: $isRecordCreated)
             }
 
             Tab(
@@ -36,8 +37,9 @@ struct AudiologView: View {
                 systemImage: "rectangle.split.2x2.fill",
                 value: "Archive"
             ) {
-                ArchiveView()
+                ArchiveView(isRecordCreated: $isRecordCreated)
             }
+            .badge(isRecordCreated ? Text("N") : nil)
 
             Tab(
                 "Recap",
@@ -97,7 +99,7 @@ struct AudiologView: View {
         }
         logger.log("[AudiologView] Reprocess done.")
     }
-    
+
     private func pendingRecordings() -> [Recording] {
         recordings.filter { !$0.isTitleGenerated || $0.title.isEmpty }
     }
