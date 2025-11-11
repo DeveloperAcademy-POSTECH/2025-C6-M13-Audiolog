@@ -12,6 +12,7 @@ import SwiftUI
 
 struct RecordView: View {
     @State private var audioRecorder = AudioRecorder()
+    @State private var timelineStart: Date? = nil
 
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.modelContext) private var modelContext
@@ -25,30 +26,93 @@ struct RecordView: View {
     @State private var showToast: Bool = false
     @Binding var isRecordCreated: Bool
 
+    private var pulsingOpacity: Double {
+        let t = audioRecorder.timeElapsed
+        return abs(sin(.pi * t / 3))
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
+                Rectangle()
+                    .foregroundColor(.sub)
+                    .frame(width: 400, height: 400)
+                    .cornerRadius(350)
+                    .blur(radius: 150)
+                    .offset(x: -100, y: -320)
+
+                Circle()
+                    .fill(.main)
+                    .frame(width: 100, height: 100)
+                    .blur(radius: 60)
+                    .offset(x: 0, y: 0)
+
+                TimelineView(.animation(minimumInterval: 1.0/24.0, paused: !audioRecorder.isRecording)) { context in
+                    let startWaveFrameCount = 129
+                    let repeatWaveFrameCount = 59
+                    let fps: Double = 24
+
+                    let baseline = timelineStart ?? context.date
+                    let t = context.date.timeIntervalSince(baseline)
+
+                    let frameName: String = {
+                        guard audioRecorder.isRecording else { return "Record000" }
+                        let frameCount = Int(floor(t * fps))
+                        if frameCount > startWaveFrameCount {
+                            return String(format: "Record%02d", frameCount % repeatWaveFrameCount)
+                        } else {
+                            return String(format: "Record%03d", frameCount % startWaveFrameCount)
+                        }
+                    }()
+
+                    if let uiImage = UIImage(named: frameName) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: screenWidth, height: screenWidth)
+                            .accessibilityHidden(true)
+                    } else {
+                        EmptyView()
+                            .frame(width: screenWidth, height: screenWidth)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .offset(y: -30)
+
                 VStack {
-                    Title(
+                    Title3(
                         text: audioRecorder.isRecording
                             ? formattedDateString(
                                 fromPTS: audioRecorder.firstBufferPTS
                             )
-                            : "오늘의 로그를 남겨볼까요?"
+                            : "기억하고 싶은 소리를\n담아보세요"
                     )
-                    .padding(.top, 44)
+                    .opacity(audioRecorder.isRecording ? 0 : 1)
+                    .padding(.top, 30)
                     Spacer()
                 }
 
-                if audioRecorder.isRecording {
-                    Text(formatTime(audioRecorder.timeElapsed))
-                        .font(.body)
-                        .offset(y: -90)
+                VStack {
+                    HStack(spacing: 10) {
+                        Circle().fill(.sub)
+                            .frame(width: 8, height: 8)
+                            .shadow(color: .sub, radius: 5)
+                            .opacity(pulsingOpacity)
+
+                        Text(formatTime(audioRecorder.timeElapsed))
+                            .font(.title.weight(.semibold))
+                            .foregroundStyle(.lbl1)
+                            .monospacedDigit()
+                    }
+                    .padding(.top, screenHeight / 4)
+                    .opacity(audioRecorder.isRecording ? 1 : 0)
+
+                    Spacer()
                 }
 
                 Toast()
                     .opacity(showToast ? 1 : 0)
-                    .offset(y: -98)
+                    .offset(y: -112)
 
                 Button {
                     handleRecordButtonTapped()
@@ -57,6 +121,7 @@ struct RecordView: View {
                 }
             }
             .onAppear {
+                if timelineStart == nil { timelineStart = Date() }
                 locationManager.onLocationUpdate = { location, address in
                     self.currentLocation = address
                     Task {
@@ -91,28 +156,27 @@ struct RecordView: View {
         await audioRecorder.stopRecording()
         logger.log(
             "[RecordView] Stopped recording due to scenePhase=\(String(describing: scenePhase)). "
-                + "fileURL=\(String(describing: audioRecorder.fileURL)), elapsed=\(audioRecorder.timeElapsed)"
+                + "fileURL=\(String(describing: audioRecorder.fileName)), elapsed=\(audioRecorder.timeElapsed)"
         )
 
-        guard let url = audioRecorder.fileURL else {
-            logger.log(
-                "[RecordView] ERROR: fileURL is nil after stopRecording() on scenePhase change. Nothing was saved."
-            )
-            return
-        }
+        let fileName = audioRecorder.fileName
 
         let recording = Recording(
-            fileURL: url,
+            fileName: fileName,
             title: "",
             isTitleGenerated: false,
             duration: audioRecorder.timeElapsed
         )
         modelContext.insert(recording)
+
+        let documentURL = getDocumentURL()
+        let fileURL = documentURL.appendingPathComponent(fileName)
+
         do {
             try modelContext.save()
             await MainActor.run { isRecordCreated = true }
             logger.log(
-                "[RecordView] Saved Recording to SwiftData (scenePhase). url=\(url.lastPathComponent), duration=\(recording.duration)"
+                "[RecordView] Saved Recording to SwiftData (scenePhase). fileName=\(fileURL.lastPathComponent), duration=\(recording.duration)"
             )
         } catch {
             logger.log(
@@ -122,7 +186,7 @@ struct RecordView: View {
         }
 
         do {
-            _ = try await waitUntilFileReady(url)
+            _ = try await waitUntilFileReady(fileURL)
         } catch {
             let ns = error as NSError
             logger.log(
@@ -137,9 +201,16 @@ struct RecordView: View {
     private func handleRecordButtonTapped() {
         if audioRecorder.isRecording {
             Task {
+                timelineStart = nil
+
+                let fileName = audioRecorder.fileName
+                let documentURL = getDocumentURL()
+
+                let fileURL = documentURL.appendingPathComponent(fileName)
+
                 await audioRecorder.stopRecording()
                 logger.log(
-                    "[RecordView] Stopped recording. fileURL=\(String(describing: audioRecorder.fileURL)), elapsed=\(audioRecorder.timeElapsed))"
+                    "[RecordView] Stopped recording. fileURL=\(String(describing: fileURL)), elapsed=\(audioRecorder.timeElapsed))"
                 )
                 // showToast 2초간 true 후 false
                 await MainActor.run {
@@ -156,56 +227,51 @@ struct RecordView: View {
                     }
                 }
 
-                if let url = audioRecorder.fileURL {
+                logger.log(
+                    "[RecordView] Will insert Recording. url=\(fileURL.absoluteString), duration=\(audioRecorder.timeElapsed))"
+                )
+
+                locationManager.requestLocation()
+
+                let recording = Recording(
+                    fileName: fileName,
+                    duration: audioRecorder.timeElapsed,
+                    weather: currentWeather,
+                    location: currentLocation
+                )
+                modelContext.insert(recording)
+                do {
+                    try modelContext.save()
+                    await MainActor.run { isRecordCreated = true }
                     logger.log(
-                        "[RecordView] Will insert Recording. url=\(url.absoluteString), duration=\(audioRecorder.timeElapsed))"
+                        "[RecordView] Saved Recording to SwiftData. url=\(fileURL.lastPathComponent), duration=\(recording.duration))"
                     )
 
-                    locationManager.requestLocation()
-
-                    let recording = Recording(
-                        fileURL: url,
-                        duration: audioRecorder.timeElapsed,
-                        weather: currentWeather,
-                        location: currentLocation
-                    )
-                    modelContext.insert(recording)
+                    // 엘리안 슈퍼 분석 세트 돌리기
                     do {
-                        try modelContext.save()
-                        await MainActor.run { isRecordCreated = true }
-                        logger.log(
-                            "[RecordView] Saved Recording to SwiftData. url=\(url.lastPathComponent), duration=\(recording.duration))"
-                        )
-
-                        // 엘리안 슈퍼 분석 세트 돌리기
-                        do {
-                            _ = try await waitUntilFileReady(url)
-                        } catch {
-                            let ns = error as NSError
-                            logger.log(
-                                "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
-                            )
-                        }
-
-                        let processor = AudioProcesser()
-                        await processor.processAudio(
-                            for: recording,
-                            modelContext: modelContext
-                        )
+                        _ = try await waitUntilFileReady(fileURL)
                     } catch {
+                        let ns = error as NSError
                         logger.log(
-                            "[RecordView] ERROR: Failed to save Recording. error=\(String(describing: error))"
+                            "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
                         )
                     }
-                } else {
+
+                    let processor = AudioProcesser()
+                    await processor.processAudio(
+                        for: recording,
+                        modelContext: modelContext
+                    )
+                } catch {
                     logger.log(
-                        "[RecordView] ERROR: fileURL is nil after stopRecording(). Nothing was saved."
+                        "[RecordView] ERROR: Failed to save Recording. error=\(String(describing: error))"
                     )
                 }
             }
         } else {
             logger.log("[RecordView] Starting recording...")
             audioRecorder.startRecording()
+            timelineStart = Date()
             logger.log(
                 "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
             )
@@ -254,11 +320,15 @@ struct RecordView: View {
             let now = Date()
 
             if now.timeIntervalSince(start) >= timeout {
-                throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
+                throw APFailure(
+                    "타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))"
+                )
             }
 
             guard fm.fileExists(atPath: url.path) else {
-                try? await Task.sleep(nanoseconds: UInt64(pollIntervalMs) * 1_000_000)
+                try? await Task.sleep(
+                    nanoseconds: UInt64(pollIntervalMs) * 1_000_000
+                )
                 continue
             }
 
@@ -277,20 +347,29 @@ struct RecordView: View {
                     let tracks = try await asset.load(.tracks)
                     let hasAudio = tracks.contains { $0.mediaType == .audio }
                     if hasAudio {
-                        logger.log("[waitUntilFileReady] ready url=\(url.lastPathComponent) size=\(size)B")
+                        logger.log(
+                            "[waitUntilFileReady] ready url=\(url.lastPathComponent) size=\(size)B"
+                        )
                         return url
                     } else {
-                        logger.log("[waitUntilFileReady] no audio tracks yet. size=\(size)B")
+                        logger.log(
+                            "[waitUntilFileReady] no audio tracks yet. size=\(size)B"
+                        )
                     }
                 } catch {
                     let ns = error as NSError
-                    logger.log("[waitUntilFileReady] asset.load(.tracks) error \(ns.domain)(\(ns.code)): \(ns.localizedDescription)")
+                    logger.log(
+                        "[waitUntilFileReady] asset.load(.tracks) error \(ns.domain)(\(ns.code)): \(ns.localizedDescription)"
+                    )
                 }
             }
 
-            try? await Task.sleep(nanoseconds: UInt64(pollIntervalMs) * 1_000_000)
+            try? await Task.sleep(
+                nanoseconds: UInt64(pollIntervalMs) * 1_000_000
+            )
         }
 
         throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
     }
 }
+

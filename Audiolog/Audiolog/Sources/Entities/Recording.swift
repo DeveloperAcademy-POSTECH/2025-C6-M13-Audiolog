@@ -5,7 +5,7 @@ import SwiftData
 final class Recording {
     var id: UUID
     //    var filePath: String
-    var fileURL: URL
+    var fileName: String
     var title: String
     var isTitleGenerated: Bool
     var duration: TimeInterval
@@ -20,7 +20,7 @@ final class Recording {
 
     init(
         id: UUID = UUID(),
-        fileURL: URL,
+        fileName: String,
         title: String = "",
         isTitleGenerated: Bool = false,
         duration: TimeInterval,
@@ -34,7 +34,7 @@ final class Recording {
         bgmArtist: String? = nil
     ) {
         self.id = id
-        self.fileURL = fileURL
+        self.fileName = fileName
         self.title = title
         self.isTitleGenerated = isTitleGenerated
         self.duration = duration

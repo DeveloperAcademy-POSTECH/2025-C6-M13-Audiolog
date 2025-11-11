@@ -17,7 +17,7 @@ struct AudiologView: View {
         SortDescriptor<Recording>(\Recording.createdAt, order: .reverse)
     ]) private var recordings: [Recording]
 
-    @State private var currentTab = "Record"
+    @State private var currentTab = "녹음"
     @State private var isPresentingPlayerSheet: Bool = false
     @State private var isReprocessingPending = false
     @State private var isRecordCreated: Bool = false
@@ -25,34 +25,34 @@ struct AudiologView: View {
     var body: some View {
         TabView(selection: $currentTab) {
             Tab(
-                "Record",
+                "녹음",
                 systemImage: "microphone",
-                value: "Record"
+                value: "녹음"
             ) {
                 RecordView(isRecordCreated: $isRecordCreated)
             }
 
             Tab(
-                "Archive",
-                systemImage: "rectangle.split.2x2.fill",
-                value: "Archive"
+                "전체 로그",
+                systemImage: "play.square.stack.fill",
+                value: "전체 로그"
             ) {
                 ArchiveView(isRecordCreated: $isRecordCreated)
             }
             .badge(isRecordCreated ? Text("N") : nil)
 
             Tab(
-                "Recap",
-                systemImage: "star.fill",
-                value: "Recap"
+                "추천 로그",
+                systemImage: "rectangle.split.2x2.fill",
+                value: "추천 로그"
             ) {
                 RecapView()
             }
 
             Tab(
-                "Search",
+                "검색",
                 systemImage: "magnifyingglass",
-                value: "Search",
+                value: "검색",
                 role: .search
             ) {
                 SearchView()
@@ -64,7 +64,7 @@ struct AudiologView: View {
                 MiniPlayerView()
             }
             .frame(maxWidth: .infinity)
-            .padding(.bottom, 62)
+            .padding(.bottom, 58)
             .padding(.horizontal, 20)
         }
         .environment(audioPlayer)
@@ -86,16 +86,21 @@ struct AudiologView: View {
             "[AudiologView] Reprocess pending titles. count=\(targets.count)"
         )
 
-        let fm = FileManager.default
-        for rec in targets {
-            guard fm.fileExists(atPath: rec.fileURL.path) else {
+        let fileManager = FileManager.default
+        let documentURL = getDocumentURL()
+
+        for target in targets {
+            let fileName = target.fileName
+            let fileURL = documentURL.appendingPathComponent(fileName)
+
+            guard fileManager.fileExists(atPath: fileURL.path) else {
                 logger.log(
-                    "[AudiologView] Skip reprocess (file missing): \(rec.fileURL.lastPathComponent)"
+                    "[AudiologView] Skip reprocess (file missing): \(fileURL)"
                 )
                 continue
             }
             let processor = AudioProcesser()
-            await processor.processAudio(for: rec, modelContext: modelContext)
+            await processor.processAudio(for: target, modelContext: modelContext)
         }
         logger.log("[AudiologView] Reprocess done.")
     }

@@ -284,26 +284,28 @@ private func buildUserPrompt(
     primaryTag: String
 ) -> String {
 
-    let walkLine = hasWalkingCues
-    ? "- 보행 단서 충분: ‘산책/걷기’ 류 표현 사용 가능."
-    : "- 보행 단서 부족: ‘산책/걷기’ 류 표현 사용 금지."
+    let walkLine =
+        hasWalkingCues
+        ? "- 보행 단서 충분: ‘산책/걷기’ 류 표현 사용 가능."
+        : "- 보행 단서 부족: ‘산책/걷기’ 류 표현 사용 금지."
 
     // primaryTag가 speech 계열이면 ‘이번 턴’ 스피치 힌트만 살짝
-    let maybeSpeechHint = primaryTag.lowercased().contains("speech")
-    ? "- 주태그가 speech: 음성 비율이 충분할 때 대화/회의/인터뷰 축 선호."
-    : ""
+    let maybeSpeechHint =
+        primaryTag.lowercased().contains("speech")
+        ? "- 주태그가 speech: 음성 비율이 충분할 때 대화/회의/인터뷰 축 선호."
+        : ""
 
     return """
-    아래는 이번 녹음의 컨텍스트(JSON)입니다.
-    \(contextJSON)
+        아래는 이번 녹음의 컨텍스트(JSON)입니다.
+        \(contextJSON)
 
-    동적 규칙(이번 턴 전용):
-    \(walkLine)
-    \(maybeSpeechHint)
+        동적 규칙(이번 턴 전용):
+        \(walkLine)
+        \(maybeSpeechHint)
 
-    위 컨텍스트를 반영하여 자연스럽고 간결한 한국어 한 문장 제목만 출력하세요.
-    (출력은 한 줄, 형식 규칙은 이미 시스템에 설정되어 있음)
-    """
+        위 컨텍스트를 반영하여 자연스럽고 간결한 한국어 한 문장 제목만 출력하세요.
+        (출력은 한 줄, 형식 규칙은 이미 시스템에 설정되어 있음)
+        """
 }
 
 private func makeFewShots(from policy: TitlePolicy) -> [(

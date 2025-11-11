@@ -1,29 +1,35 @@
 {
   "fill" : {
-    "linear-gradient" : [
-      "extended-gray:1.00000,1.00000",
-      "extended-gray:1.00000,1.00000"
-    ]
+    "automatic-gradient" : "display-p3:0.58039,0.70588,0.97647,1.00000"
   },
   "groups" : [
     {
       "layers" : [
         {
-          "fill-specializations" : [
-            {
-              "value" : {
-                "automatic-gradient" : "extended-gray:1.00000,1.00000"
-              }
-            },
-            {
-              "appearance" : "light",
-              "value" : {
-                "automatic-gradient" : "extended-gray:0.00000,1.00000"
-              }
-            }
-          ],
-          "image-name" : "Audiolog.png",
-          "name" : "Audiolog"
+          "fill" : {
+            "solid" : "extended-gray:1.00000,1.00000"
+          },
+          "image-name" : "Vector 297 (Stroke).svg",
+          "name" : "Vector 297 (Stroke)",
+          "opacity" : 0.4,
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              35,
+              -140
+            ]
+          }
+        },
+        {
+          "image-name" : "Vector 296 (Stroke).svg",
+          "name" : "Vector 296 (Stroke)",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              0,
+              70
+            ]
+          }
         }
       ],
       "shadow" : {

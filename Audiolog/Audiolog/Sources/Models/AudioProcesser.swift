@@ -38,7 +38,7 @@ class AudioProcesser: NSObject {
     // 내부 상태
     private var analyzerRef: SNAudioFileAnalyzer?
     private var observerRef: ClassificationObserver?
-    
+
     /// TitlePolicy → 시스템 프롬프트(instructions)
 
     private static func loadTitlePolicyOnce() -> TitlePolicy {
@@ -63,12 +63,17 @@ class AudioProcesser: NSObject {
     func processAudio(for recording: Recording, modelContext: ModelContext)
         async
     {
+        let fileName = recording.fileName
+        let documentURL = getDocumentURL()
+
+        let fileURL = documentURL.appendingPathComponent(fileName)
+
         logStep(
             0,
             "processAudio 시작",
             [
                 "recordingId": recording.id.uuidString,
-                "fileURL": recording.fileURL.absoluteString,
+                "fileURL": fileURL.absoluteString,
                 "duration": String(format: "%.3f", recording.duration),
             ]
         )
@@ -86,9 +91,9 @@ class AudioProcesser: NSObject {
             logStep(
                 1,
                 "파일 준비(분석 가능 포맷 보장) 시작",
-                ["inputPath": recording.fileURL.path]
+                ["inputPath": fileURL.path]
             )
-            let safeURL = try await prepareAudioURL(recording.fileURL)
+            let safeURL = try await prepareAudioURL(fileURL)
             logStep(
                 1,
                 "파일 준비 완료",
@@ -557,65 +562,70 @@ private class ClassificationObserver: NSObject, SNResultsObserving {
     }
 }
 
-private extension AudioProcesser {
-    static func buildTitleInstructions(from p: TitlePolicy) -> String {
+extension AudioProcesser {
+    fileprivate static func buildTitleInstructions(from p: TitlePolicy)
+        -> String
+    {
         let guardrails = p.guardrails.map { "• \($0)" }.joined(separator: "\n")
 
         let ratioPrinciples = """
-        비중(태그비율) 원칙:
-        - 주태그 비율이 35% 이상이면 제목의 핵심 콘셉트로 반드시 반영
-        - 20~35% 구간은 맥락(전사/특수케이스/위치)과 조화롭게 선택 반영
-        - 12% 미만 태그 단어는 제목에 직접 쓰지 말고 분위기 힌트로만 사용
-        """
+            비중(태그비율) 원칙:
+            - 주태그 비율이 35% 이상이면 제목의 핵심 콘셉트로 반드시 반영
+            - 20~35% 구간은 맥락(전사/특수케이스/위치)과 조화롭게 선택 반영
+            - 12% 미만 태그 단어는 제목에 직접 쓰지 말고 분위기 힌트로만 사용
+            """
 
         let hardBans = """
-        금지 규칙(MUST NOT):
-        - 입력 JSON에 '위치'가 없으면 지명/장소(부산/해운대/서울/카페 등) 절대 금지
-        - '음성유무'가 false면 말/대화/회의/인터뷰/독백 등 발화 관련 단어 금지
-        - '물/파도허용'이 false면 파도/바다/해변 관련 단어 금지
-        - 입력에 없는 인명/행사명/지명/곡명/가수 생성 금지(추정/창작 금지)
-        """
+            금지 규칙(MUST NOT):
+            - 입력 JSON에 '위치'가 없으면 지명/장소(부산/해운대/서울/카페 등) 절대 금지
+            - '음성유무'가 false면 말/대화/회의/인터뷰/독백 등 발화 관련 단어 금지
+            - '물/파도허용'이 false면 파도/바다/해변 관련 단어 금지
+            - 입력에 없는 인명/행사명/지명/곡명/가수 생성 금지(추정/창작 금지)
+            """
 
         // 보행/스피치 ‘일반 지침’(세부 허용/금지는 유저 프롬프트에서 플래그로 제어)
-        let walkingGeneral = p.walkingConstraints.requireWalkingCuesForWalkWords
-        ? "보행 단어(\(p.walkingConstraints.walkWords.joined(separator: ", ")))는 보행 단서가 충분할 때만 허용."
-        : ""
+        let walkingGeneral =
+            p.walkingConstraints.requireWalkingCuesForWalkWords
+            ? "보행 단어(\(p.walkingConstraints.walkWords.joined(separator: ", ")))는 보행 단서가 충분할 때만 허용."
+            : ""
 
-        let speechGeneral = !p.speechBias.enableWhenPrimaryTagEquals.isEmpty
-        ? "주태그가 \(p.speechBias.enableWhenPrimaryTagEquals.joined(separator: "/"))일 때 음성 비율이 충분하면 대화/회의/인터뷰 축을 선호."
-        : ""
+        let speechGeneral =
+            !p.speechBias.enableWhenPrimaryTagEquals.isEmpty
+            ? "주태그가 \(p.speechBias.enableWhenPrimaryTagEquals.joined(separator: "/"))일 때 음성 비율이 충분하면 대화/회의/인터뷰 축을 선호."
+            : ""
 
         // shotBlock: TitlePolicy.fewShots → 시스템 프롬프트에 포함
         let shotBlock = compactFewShots(from: p)
 
         return """
-        모든 출력은 한국어 한 문장. 따옴표/이모지/해시태그/접두 라벨/줄바꿈 금지.
-        힌트태그로 새로운 맥락을 만들지 말 것(추가 설정/상상 금지).
+            모든 출력은 한국어 한 문장. 따옴표/이모지/해시태그/접두 라벨/줄바꿈 금지.
+            힌트태그로 새로운 맥락을 만들지 말 것(추가 설정/상상 금지).
 
-        제목 작성 지향:
-        \(guardrails)
+            제목 작성 지향:
+            \(guardrails)
 
-        \(hardBans)
+            \(hardBans)
 
-        \(ratioPrinciples)
+            \(ratioPrinciples)
 
-        \(walkingGeneral)
-        \(speechGeneral)
+            \(walkingGeneral)
+            \(speechGeneral)
 
-        예시(Few-shot, 형식 참고용):
-        \(shotBlock)
-        """
+            예시(Few-shot, 형식 참고용):
+            \(shotBlock)
+            """
     }
 
     /// TitlePolicy.fewShots를 system용 shotBlock 문자열로 압축
-    static func compactFewShots(from p: TitlePolicy) -> String {
+    fileprivate static func compactFewShots(from p: TitlePolicy) -> String {
         guard !p.fewShots.isEmpty else { return "- (없음)" }
         // 너무 길어질 수 있으니 6개 정도만(원문에서 이미 적당하면 전체 사용도 무방)
         let items = p.fewShots.prefix(6).map { fs -> String in
             // nil 값 제거한 JSON 한 줄
             var dict: [String: Any] = [:]
             fs.input.forEach { k, v in if let v { dict[k] = v } }
-            let json = (try? JSONSerialization.data(withJSONObject: dict))
+            let json =
+                (try? JSONSerialization.data(withJSONObject: dict))
                 .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
             return "입력: \(json)\n출력: \(fs.output)"
         }

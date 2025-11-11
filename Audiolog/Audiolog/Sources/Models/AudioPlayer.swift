@@ -84,11 +84,16 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     }
 
     func load(_ recording: Recording) {
-        logger.log("Loading audio from: \(recording.fileURL.absoluteString)")
+        let fileName = recording.fileName
+        let documentURL = getDocumentURL()
+
+        let fileURL = documentURL.appendingPathComponent(fileName)
+
+        logger.log("Loading audio from: \(recording.fileName)")
         do {
-            player = try AVAudioPlayer(contentsOf: recording.fileURL)
+            player = try AVAudioPlayer(contentsOf: fileURL)
             logger.log(
-                "AVAudioPlayer initialized successfully for: \(recording.fileURL.lastPathComponent)"
+                "AVAudioPlayer initialized successfully for: \(fileURL.lastPathComponent)"
             )
         } catch {
             logger.error(
