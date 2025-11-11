@@ -29,6 +29,12 @@ struct RecordView: View {
                     .blur(radius: 100)
                     .offset(x: -100, y: -320)
 
+                Circle()
+                    .fill(.main)
+                    .frame(width: 100, height: 100)
+                    .blur(radius: 44)
+                    .offset(x: 0, y: 0)
+
                 VStack {
                     Title3(
                         text: audioRecorder.isRecording
@@ -37,32 +43,37 @@ struct RecordView: View {
                             )
                             : "기억하고 싶은 소리를\n담아보세요"
                     )
+                    .opacity(audioRecorder.isRecording ? 0 : 1)
                     .padding(.top, 30)
                     Spacer()
                 }
 
-                if audioRecorder.isRecording {
-                    Text(formatTime(audioRecorder.timeElapsed))
-                        .font(.body)
-                        .offset(y: -90)
+                VStack {
+                    HStack(spacing: 10) {
+                        Circle().fill(.sub)
+                            .frame(width: 8, height: 8)
+                            .shadow(color: .sub, radius: 5)
+
+                        Text(formatTime(audioRecorder.timeElapsed))
+                            .font(.title.weight(.semibold))
+                            .foregroundStyle(.lbl1)
+                            .monospacedDigit()
+                    }
+                    .padding(.top, screenHeight / 4)
+                    .opacity(audioRecorder.isRecording ? 1 : 0)
+
+                    Spacer()
                 }
 
                 Toast()
                     .opacity(showToast ? 1 : 0)
-                    .offset(y: -98)
-
-                Circle()
-                    .fill(.main)
-                    .frame(width: 100, height: 100)
-                    .blur(radius: 44)
-                    .offset(x: 0, y: 0)
+                    .offset(y: -112)
 
                 Button {
                     handleRecordButtonTapped()
                 } label: {
                     MicButtonLabel(isRecording: audioRecorder.isRecording)
                 }
-                .offset(x: 0, y: 0)
             }
             .onAppear {
                 audioRecorder.setupCaptureSession()

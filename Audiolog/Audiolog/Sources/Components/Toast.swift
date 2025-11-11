@@ -9,16 +9,15 @@ import SwiftUI
 
 struct Toast: View {
     var body: some View {
-        Text("녹음이 종료되었어요.")
-            .font(
-                Font.footnote
-                    .weight(.semibold)
-            )
-            .foregroundStyle(.background)
-            .padding(10)
+        Text("소리가 저장되었어요.")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.lbl1)
+            .padding(.horizontal, 15)
+            .padding(.vertical, 12)
             .background {
-                Capsule().fill(.primary)
+                Capsule().fill(.bgToast)
             }
+            .frame(height: 45)
     }
 }
 
