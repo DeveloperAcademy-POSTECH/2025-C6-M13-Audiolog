@@ -15,25 +15,40 @@ import Speech
 import SwiftData
 import UniformTypeIdentifiers
 
-@Observable
-class AudioProcesser: NSObject {
+actor AudioProcesser {
     private var session: LanguageModelSession
     private let titlePolicy: TitlePolicy
 
-    override init() {
-        // 0) 정책 로드
+    private var lastTask: Task<Void, Never>? = nil
+    private var inflight: Set<UUID> = []
+
+    init() {
         let policy = AudioProcesser.loadTitlePolicyOnce()
         self.titlePolicy = policy
-
-        // 1) 시스템 프롬프트(instructions) 구성: guardrails + hard bans + ratio + few-shots(shotBlock)
         let instructions = AudioProcesser.buildTitleInstructions(from: policy)
+        self.session = LanguageModelSession(instructions: instructions)
+    }
 
-        // 2) 세션 생성 (시스템 프롬프트 주입)
-        self.session = LanguageModelSession(
-            instructions: instructions
-        )
+    func enqueueProcess(for recording: Recording, modelContext: ModelContext) {
+        let rid = recording.id
+        if inflight.contains(rid) {
+            return
+        }
+        inflight.insert(rid)
 
-        super.init()
+        let prev = lastTask
+        let task = Task { [weak self] in
+            if let prev { _ = await prev.value }
+            guard let self else { return }
+            defer { Task { await self.finish(rid) } }
+
+            await self.runProcess(for: recording, modelContext: modelContext)
+        }
+        lastTask = task
+    }
+
+    private func finish(_ id: UUID) {
+        inflight.remove(id)
     }
 
     // 내부 상태
@@ -60,13 +75,12 @@ class AudioProcesser: NSObject {
     }
 
     // MARK: - Public entrypoint
-    @MainActor
-    func processAudio(for recording: Recording, modelContext: ModelContext)
-        async
-    {
+    private func runProcess(
+        for recording: Recording,
+        modelContext: ModelContext
+    ) async {
         let fileName = recording.fileName
         let documentURL = getDocumentURL()
-
         let fileURL = documentURL.appendingPathComponent(fileName)
 
         logStep(
@@ -80,7 +94,6 @@ class AudioProcesser: NSObject {
         )
 
         do {
-            // 0) 오디오 세션 최소 설정 (try?는 throw하지 않으므로 do/catch 제거)
             try? AVAudioSession.sharedInstance().setCategory(
                 .playback,
                 mode: .default
@@ -88,28 +101,17 @@ class AudioProcesser: NSObject {
             try? AVAudioSession.sharedInstance().setActive(true)
             logger.log("[AudioProcesser] (0) AVAudioSession OK")
 
-            // 1) 변환/보장
-            logStep(
-                1,
-                "파일 준비(분석 가능 포맷 보장) 시작",
-                ["inputPath": fileURL.path]
-            )
+            // 1) 포맷 보장
+            logStep(1, "파일 준비(분석 가능 포맷 보장) 시작", ["inputPath": fileURL.path])
             let safeURL = try await prepareAudioURL(fileURL)
-            logStep(
-                1,
-                "파일 준비 완료",
-                ["safePath": safeURL.path]
-            )
+            logStep(1, "파일 준비 완료", ["safePath": safeURL.path])
 
             // 2) 사운드 분류
             logStep(2, "사운드 분류 시작", ["url": safeURL.lastPathComponent])
             let (stats, hasVoice) = try await analyzeSound(url: safeURL)
-
             let totalCount = stats.values.reduce(0, +)
-
             let top5Pairs = stats.sorted { $0.value > $1.value }.prefix(5)
             let top5 = top5Pairs.map { $0.key }
-
             let top5Ratios = top5Pairs.map { (label, count) -> String in
                 let ratio =
                     totalCount > 0
@@ -117,8 +119,10 @@ class AudioProcesser: NSObject {
                 return String(format: "%@ %.1f%%", label, ratio)
             }
 
-            recording.tags = top5
-
+            // SwiftData write는 메인액터에서
+            await MainActor.run {
+                recording.tags = top5
+            }
             logStep(
                 2,
                 "사운드 분류 완료",
@@ -131,44 +135,41 @@ class AudioProcesser: NSObject {
             )
 
             do {
-                try modelContext.save()
+                try await MainActor.run { try modelContext.save() }
                 logger.log("[AudioProcesser] (2.5) 중간 저장 OK")
             } catch {
                 logNSError(error, prefix: "(2.5) modelContext.save()")
             }
 
-            // 3) 전사 (스피치/싱잉일 때만)
+            // 3) 전사
             if hasVoice {
                 logStep(3, "전사 시작", ["locale": "ko_KR"])
                 if let transcript = try? await transcribe(
                     url: safeURL,
                     localeIdentifier: "ko_KR"
                 ) {
-                    recording.dialog = transcript
+                    await MainActor.run { recording.dialog = transcript }
                     logStep(3, "전사 완료", ["length": "\(transcript.count)"])
                     let preview = transcript.replacingOccurrences(
                         of: "\n",
                         with: " "
-                    )
-                    .prefix(120)
+                    ).prefix(120)
                     logger.log("[AudioProcesser] (3) 전사 미리보기: \(preview)")
-                    try? modelContext.save()
+                    try? await MainActor.run { try modelContext.save() }
                 } else {
-                    logger.log(
-                        "[AudioProcesser] (3) 전사 스킵 또는 실패(에러는 상단에서 이미 로깅됨)"
-                    )
+                    logger.log("[AudioProcesser] (3) 전사 스킵 또는 실패")
                 }
             } else {
                 logger.log("[AudioProcesser] (3) hasVoice=false 전사 스킵")
             }
 
-            // TODO: music, singing일 때, 샤잠킷 구동하는 부분
+            // 4) 샤잠킷(음악성 신호 있을 때)
             let lowerTop5 = top5.map { $0.lowercased() }
-            let looksLikeMusic = lowerTop5.contains(where: {
-                $0.contains("music") || $0.contains("singing")
-                    || $0.contains("instrument") || $0.contains("song")
-                    || $0.contains("drum") || $0.contains("guitar")
-            })
+            let looksLikeMusic = lowerTop5.contains { l in
+                l.contains("music") || l.contains("singing")
+                    || l.contains("instrument") || l.contains("song")
+                    || l.contains("drum") || l.contains("guitar")
+            }
 
             if looksLikeMusic {
                 logStep(
@@ -178,15 +179,16 @@ class AudioProcesser: NSObject {
                 )
                 do {
                     if let item = try await identifyMusic(from: safeURL) {
-                        // Recording 모델에 맞춰 갱신 (필드명은 프로젝트에 맞게 조정)
-                        recording.bgmTitle = item.title ?? recording.bgmTitle
-                        recording.bgmArtist = item.artist ?? recording.bgmArtist
-
-                        // 참고로 Shazam 메타데이터 더 있음
+                        await MainActor.run {
+                            recording.bgmTitle =
+                                item.title ?? recording.bgmTitle
+                            recording.bgmArtist =
+                                item.artist ?? recording.bgmArtist
+                        }
                         logger.log(
                             "[AudioProcesser] (4.5) ShazamKit 매칭: \(item.title ?? "?") - \(item.artist ?? "?")"
                         )
-                        try? modelContext.save()
+                        try? await MainActor.run { try modelContext.save() }
                     } else {
                         logger.log("[AudioProcesser] (4.5) ShazamKit 매칭 결과 없음")
                     }
@@ -203,25 +205,26 @@ class AudioProcesser: NSObject {
                 for: recording,
                 using: session,
                 temperature: 0.35,
-                tagWeights: stats,  // ⬅️ 한 번만 전달
-                policy: self.titlePolicy  // ⬅️ 주입된 정책 사용
+                tagWeights: stats,
+                policy: self.titlePolicy
             ) {
-                recording.title = title
-                recording.isTitleGenerated = true
-                logStep(4, "타이틀 생성 완료", ["title": title])
+                await MainActor.run {
+                    recording.title = title
+                    recording.isTitleGenerated = true
+                }
+                logStep(5, "타이틀 생성 완료", ["title": title])
             } else {
                 logger.log(
-                    "[AudioProcesser] (4) TitleGuide.generateTitle 실패 (nil)"
+                    "[AudioProcesser] (5) TitleGuide.generateTitle 실패 (nil)"
                 )
             }
 
-            // 5) 최종 저장
+            // 6) 최종 저장
             logStep(6, "최종 저장 시작", [:])
-            try modelContext.save()
+            try await MainActor.run { try modelContext.save() }
             logStep(6, "최종 저장 완료", ["recordingId": recording.id.uuidString])
 
         } catch {
-            // 실패는 조용히 로깅 수준으로 처리. 필요 시 에러 전달 구조로 확장 가능.
             let ns = error as NSError
             logger.log(
                 "[AudioProcesser] ERROR processAudio: \(ns.domain)(\(ns.code)) \(ns.localizedDescription) userInfo=\(ns.userInfo)"
@@ -344,10 +347,15 @@ class AudioProcesser: NSObject {
         logger.log("[AudioProcesser] (2) analyzeSound 입력: \(debugURL(url))")
 
         let analyzer = try SNAudioFileAnalyzer(url: url)
-        let request = try SNClassifySoundRequest(classifierIdentifier: .version1)
+        let request = try SNClassifySoundRequest(
+            classifierIdentifier: .version1
+        )
 
         // A-1) 윈도우 짧게 (기본 1.5s → 0.9s 권장)
-        request.windowDuration = CMTimeMakeWithSeconds(0.9, preferredTimescale: 44100)
+        request.windowDuration = CMTimeMakeWithSeconds(
+            0.9,
+            preferredTimescale: 44100
+        )
 
         // ---- 컬렉션 구조: 프레임별 top2 + 에너지 ----
         struct FrameVote {
@@ -360,10 +368,14 @@ class AudioProcesser: NSObject {
 
         // C-1) 파일에서 대충의 RMS를 재계산하는 유틸 (짧은 슬라이스 에너지)
         func rmsOf(_ buffer: AVAudioPCMBuffer) -> Float {
-            guard let ch = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
+            guard let ch = buffer.floatChannelData?[0], buffer.frameLength > 0
+            else { return 0 }
             let n = Int(buffer.frameLength)
             var acc: Float = 0
-            for i in 0..<n { let v = ch[i]; acc += v*v }
+            for i in 0..<n {
+                let v = ch[i]
+                acc += v * v
+            }
             return sqrt(acc / Float(n))
         }
 
@@ -380,12 +392,14 @@ class AudioProcesser: NSObject {
                 if let first = sorted.first {
                     let second = sorted.dropFirst().first
                     // C-2) 에너지는 별도 측정이 정확하지만, 대체로 conf 낮은 프레임은 에너지도 낮다 가정
-                    frames.append(FrameVote(
-                        time: first.timeRange,
-                        top1: (first.label, first.confidence),
-                        top2: second.map { ($0.label, $0.confidence) },
-                        rms: 1.0 // (정확 RMS는 아래 오프라인 추정으로 대체 가능)
-                    ))
+                    frames.append(
+                        FrameVote(
+                            time: first.timeRange,
+                            top1: (first.label, first.confidence),
+                            top2: second.map { ($0.label, $0.confidence) },
+                            rms: 1.0  // (정확 RMS는 아래 오프라인 추정으로 대체 가능)
+                        )
+                    )
                 }
             case .failure(let error):
                 self.logNSError(error, prefix: "(2) observer")
@@ -407,7 +421,7 @@ class AudioProcesser: NSObject {
         // A-2) 마진/문턱 적용 + B) 런 길이 스무딩
         let minConf: Double = 0.55
         let minMargin: Double = 0.15
-        let minRun: Int = 2 // 같은 라벨 최소 2프레임 연속일 때만 인정
+        let minRun: Int = 2  // 같은 라벨 최소 2프레임 연속일 때만 인정
 
         // 유효 프레임으로 필터링
         let filtered: [String?] = frames.map { f in
@@ -423,12 +437,17 @@ class AudioProcesser: NSObject {
         var i = 0
         while i < filtered.count {
             let current = filtered[i]
-            if current == nil { i += 1; continue }
+            if current == nil {
+                i += 1
+                continue
+            }
             var j = i
             while j < filtered.count && filtered[j] == current { j += 1 }
             let runLen = j - i
             if runLen >= minRun, let label = current {
-                confirmed.append(contentsOf: Array(repeating: label, count: runLen))
+                confirmed.append(
+                    contentsOf: Array(repeating: label, count: runLen)
+                )
             }
             i = j
         }
@@ -439,15 +458,18 @@ class AudioProcesser: NSObject {
         for label in confirmed {
             labelStats[label, default: 0] += 1
             let l = label.lowercased()
-            if l.contains("speech") || l.contains("singing") || l.contains("vocal") {
+            if l.contains("speech") || l.contains("singing")
+                || l.contains("vocal")
+            {
                 hasVoice = true
             }
         }
 
-        logger.log("[AudioProcesser] (2) 집계 결과(후처리): frames=\(frames.count) confirmed=\(confirmed.count) unique=\(labelStats.count)")
+        logger.log(
+            "[AudioProcesser] (2) 집계 결과(후처리): frames=\(frames.count) confirmed=\(confirmed.count) unique=\(labelStats.count)"
+        )
         return (labelStats, hasVoice)
     }
-
 
     // MARK: - Transcription
     private func transcribe(url: URL, localeIdentifier: String) async throws

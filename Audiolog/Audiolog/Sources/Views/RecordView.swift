@@ -47,7 +47,12 @@ struct RecordView: View {
                     .blur(radius: 60)
                     .offset(x: 0, y: 0)
 
-                TimelineView(.animation(minimumInterval: 1.0/24.0, paused: !audioRecorder.isRecording)) { context in
+                TimelineView(
+                    .animation(
+                        minimumInterval: 1.0 / 24.0,
+                        paused: !audioRecorder.isRecording
+                    )
+                ) { context in
                     let startWaveFrameCount = 129
                     let repeatWaveFrameCount = 59
                     let fps: Double = 24
@@ -56,12 +61,20 @@ struct RecordView: View {
                     let t = context.date.timeIntervalSince(baseline)
 
                     let frameName: String = {
-                        guard audioRecorder.isRecording else { return "Record000" }
+                        guard audioRecorder.isRecording else {
+                            return "Record000"
+                        }
                         let frameCount = Int(floor(t * fps))
                         if frameCount > startWaveFrameCount {
-                            return String(format: "Record%02d", frameCount % repeatWaveFrameCount)
+                            return String(
+                                format: "Record%02d",
+                                frameCount % repeatWaveFrameCount
+                            )
                         } else {
-                            return String(format: "Record%03d", frameCount % startWaveFrameCount)
+                            return String(
+                                format: "Record%03d",
+                                frameCount % startWaveFrameCount
+                            )
                         }
                     }()
 
@@ -124,6 +137,7 @@ struct RecordView: View {
             .onAppear {
                 if timelineStart == nil { timelineStart = Date() }
                 locationManager.onLocationUpdate = { location, address in
+
                     self.currentLocation = address
                     Task {
                         self.currentWeather =
@@ -196,7 +210,7 @@ struct RecordView: View {
         }
 
         let processor = AudioProcesser()  // DI 사용 시 주입 인스턴스로 교체
-        await processor.processAudio(for: recording, modelContext: modelContext)
+        await processor.enqueueProcess(for: recording, modelContext: modelContext)
     }
 
     private func handleRecordButtonTapped() {
@@ -259,7 +273,7 @@ struct RecordView: View {
                     }
 
                     let processor = AudioProcesser()
-                    await processor.processAudio(
+                    await processor.enqueueProcess(
                         for: recording,
                         modelContext: modelContext
                     )
@@ -373,4 +387,3 @@ struct RecordView: View {
         throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
     }
 }
-

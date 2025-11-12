@@ -104,7 +104,7 @@ struct AudiologView: View {
                 continue
             }
             let processor = AudioProcesser()
-            await processor.processAudio(for: target, modelContext: modelContext)
+            await processor.enqueueProcess(for: target, modelContext: modelContext)
         }
         logger.log("[AudiologView] Reprocess done.")
     }
