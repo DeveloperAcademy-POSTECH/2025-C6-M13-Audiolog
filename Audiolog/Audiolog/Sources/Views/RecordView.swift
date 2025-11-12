@@ -25,6 +25,8 @@ struct RecordView: View {
 
     @State private var showToast: Bool = false
     @Binding var isRecordCreated: Bool
+    
+    @AccessibilityFocusState private var voFocused: Bool
 
     private var pulsingOpacity: Double {
         let t = audioRecorder.timeElapsed
@@ -89,8 +91,10 @@ struct RecordView: View {
                     )
                     .opacity(audioRecorder.isRecording ? 0 : 1)
                     .padding(.top, 30)
+                    .accessibilityFocused($voFocused)
                     Spacer()
                 }
+                .accessibilitySortPriority(1)
 
                 VStack {
                     HStack(spacing: 10) {
@@ -134,6 +138,9 @@ struct RecordView: View {
                 }
                 audioRecorder.setupCaptureSession()
                 locationManager.requestLocation()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        voFocused = true
+                    }
             }
             .onDisappear {
                 if audioRecorder.isRecording {
@@ -150,6 +157,9 @@ struct RecordView: View {
                     await stopAndPersistRecordingOnScenePhaseChange()
                 }
             }
+        }
+        .accessibilityAction(.magicTap) {
+            handleRecordButtonTapped()
         }
     }
 
@@ -373,4 +383,3 @@ struct RecordView: View {
         throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
     }
 }
-

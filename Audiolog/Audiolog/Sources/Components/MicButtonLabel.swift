@@ -44,6 +44,7 @@ struct MicButtonLabel: View {
                 }
             )
             .glassEffect(.regular.interactive())
+            .accessibilityLabel(isRecording ? "중단" : "녹음")
             .onAppear {
                 startMotionUpdates()
             }
