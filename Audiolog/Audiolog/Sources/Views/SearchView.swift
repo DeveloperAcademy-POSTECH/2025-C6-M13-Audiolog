@@ -122,12 +122,17 @@ struct SearchView: View {
                                     }
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
+                                    .accessibilityElement(children: .ignore)
+                                    .accessibilityLabel(Text(
+                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                    ))
                                 }
                                 Spacer()
                             }
                             .padding(.vertical, 4)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityElement(children: .combine)
                     }
                     .onDelete(perform: delete)
                 }
