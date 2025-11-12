@@ -7,6 +7,7 @@
 
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct ArchiveView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
@@ -33,7 +34,6 @@ struct ArchiveView: View {
             return "녹음 목록"
         }
     }
-
     var body: some View {
         NavigationStack {
             ZStack {
@@ -75,13 +75,15 @@ struct ArchiveView: View {
                                     }
 
                                     Text(
-                                        "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
+                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) · \(item.formattedDuration)"
                                     )
                                     .lineLimit(1)
                                     .font(.subheadline)
                                     .foregroundStyle(.lbl2)
+                                    .accessibilityLabel(Text(
+                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                    ))
                                 }
-
                                 Spacer()
                             }
                             .contentShape(Rectangle())
@@ -110,6 +112,7 @@ struct ArchiveView: View {
                             .contentShape(Rectangle())
                             .frame(width: 44, height: 44)
                             .disabled(isSelecting || editingId != nil)
+                            .accessibilityHidden(true)
                         }
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 15)
@@ -127,7 +130,7 @@ struct ArchiveView: View {
                                             systemName: item.isFavorite
                                                 ? "star.slash" : "star.fill"
                                         )
-                                        Text(item.isFavorite ? "해제" : "즐겨찾기")
+                                        Text(item.isFavorite ? "즐겨찾기 해제" : "즐겨찾기")
                                     }
                                 }
                                 .tint(.main)
@@ -164,9 +167,12 @@ struct ArchiveView: View {
                             }
                         }
                         .tag(item.id)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityAddTraits(.isButton)
                     }
                 }
                 .padding(.horizontal, 20)
+                .accessibilitySortPriority(3)
             }
             .listStyle(.plain)
             .listRowSpacing(10)
