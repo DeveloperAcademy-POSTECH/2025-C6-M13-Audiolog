@@ -343,21 +343,50 @@ class AudioProcesser: NSObject {
     private func analyzeSound(url: URL) async throws -> ([String: Int], Bool) {
         logger.log("[AudioProcesser] (2) analyzeSound 입력: \(debugURL(url))")
 
-        let analyzer: SNAudioFileAnalyzer = try SNAudioFileAnalyzer(url: url)
-        let request: SNClassifySoundRequest = try SNClassifySoundRequest(
-            classifierIdentifier: .version1
-        )
-        request.windowDuration = CMTimeMakeWithSeconds(
-            1.5,
-            preferredTimescale: 44100
-        )
+        let analyzer = try SNAudioFileAnalyzer(url: url)
+        let request = try SNClassifySoundRequest(classifierIdentifier: .version1)
 
-        var collected: [ClassificationItem] = []
+        // A-1) 윈도우 짧게 (기본 1.5s → 0.9s 권장)
+        request.windowDuration = CMTimeMakeWithSeconds(0.9, preferredTimescale: 44100)
+
+        // ---- 컬렉션 구조: 프레임별 top2 + 에너지 ----
+        struct FrameVote {
+            let time: CMTimeRange
+            let top1: (label: String, conf: Double)
+            let top2: (label: String, conf: Double)?
+            let rms: Float
+        }
+        var frames: [FrameVote] = []
+
+        // C-1) 파일에서 대충의 RMS를 재계산하는 유틸 (짧은 슬라이스 에너지)
+        func rmsOf(_ buffer: AVAudioPCMBuffer) -> Float {
+            guard let ch = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return 0 }
+            let n = Int(buffer.frameLength)
+            var acc: Float = 0
+            for i in 0..<n { let v = ch[i]; acc += v*v }
+            return sqrt(acc / Float(n))
+        }
+
+        // 결과 수집
         let cont = AnalysisContinuation()
         let observer = ClassificationObserver { result, finished in
             switch result {
             case .success(let items):
-                collected.append(contentsOf: items)
+                // SNClassificationResult 전부를 못 받으니, items에서 top2를 추정:
+                // (여기서는 너가 기존에 추가하는 로직에서 r.classifications를 직접 받아와도 OK)
+                // 임시: items는 이미 conf>0.20 필터가 있었음 → 기존 필터 제거하고 원본 topN을 받아오도록 조정 권장
+                // 지금은 대안으로 정렬:
+                let sorted = items.sorted { $0.confidence > $1.confidence }
+                if let first = sorted.first {
+                    let second = sorted.dropFirst().first
+                    // C-2) 에너지는 별도 측정이 정확하지만, 대체로 conf 낮은 프레임은 에너지도 낮다 가정
+                    frames.append(FrameVote(
+                        time: first.timeRange,
+                        top1: (first.label, first.confidence),
+                        top2: second.map { ($0.label, $0.confidence) },
+                        rms: 1.0 // (정확 RMS는 아래 오프라인 추정으로 대체 가능)
+                    ))
+                }
             case .failure(let error):
                 self.logNSError(error, prefix: "(2) observer")
                 cont.resumeThrowing(error)
@@ -375,24 +404,50 @@ class AudioProcesser: NSObject {
         } catch { observer.fail(error) }
         try await cont.wait()
 
+        // A-2) 마진/문턱 적용 + B) 런 길이 스무딩
+        let minConf: Double = 0.55
+        let minMargin: Double = 0.15
+        let minRun: Int = 2 // 같은 라벨 최소 2프레임 연속일 때만 인정
+
+        // 유효 프레임으로 필터링
+        let filtered: [String?] = frames.map { f in
+            guard f.top1.conf >= minConf else { return nil }
+            let m = f.top1.conf - (f.top2?.conf ?? 0.0)
+            guard m >= minMargin else { return nil }
+            // C-3) 에너지 컷 (정확 측정 시: if f.rms < 0.01 { return nil })
+            return f.top1.label
+        }
+
+        // 런 길이 기반 확정 라벨 시퀀스 생성
+        var confirmed: [String] = []
+        var i = 0
+        while i < filtered.count {
+            let current = filtered[i]
+            if current == nil { i += 1; continue }
+            var j = i
+            while j < filtered.count && filtered[j] == current { j += 1 }
+            let runLen = j - i
+            if runLen >= minRun, let label = current {
+                confirmed.append(contentsOf: Array(repeating: label, count: runLen))
+            }
+            i = j
+        }
+
         // 집계
         var labelStats: [String: Int] = [:]
         var hasVoice = false
-        for it in collected {
-            labelStats[it.label, default: 0] += 1
-            let l = it.label.lowercased()
-            if (l.contains("speech") || l.contains("singing")
-                || l.contains("vocal")) && it.confidence >= 0.40
-            {
+        for label in confirmed {
+            labelStats[label, default: 0] += 1
+            let l = label.lowercased()
+            if l.contains("speech") || l.contains("singing") || l.contains("vocal") {
                 hasVoice = true
             }
         }
 
-        logger.log(
-            "[AudioProcesser] (2) 집계 결과: totalFrames=\(collected.count) uniqueLabels=\(labelStats.count)"
-        )
+        logger.log("[AudioProcesser] (2) 집계 결과(후처리): frames=\(frames.count) confirmed=\(confirmed.count) unique=\(labelStats.count)")
         return (labelStats, hasVoice)
     }
+
 
     // MARK: - Transcription
     private func transcribe(url: URL, localeIdentifier: String) async throws

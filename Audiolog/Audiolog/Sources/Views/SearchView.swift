@@ -41,84 +41,124 @@ struct SearchView: View {
 
     var body: some View {
         NavigationStack {
-            if searchText.isEmpty {
-                if isSearchFocused {
-                    Title(text: "최근 검색한 항목_포커스")
-                    Spacer()
-                    if recentItems.isEmpty {
-                        Text("최근 검색한 항목이 없습니다.")
-                    } else {
-                        List {
-                            Section {
-                                ForEach(recentItems, id: \.self) { keyword in
-                                    Button {
-                                        searchText = keyword
-                                    } label: {
-                                        HStack {
-                                            Text(keyword)
-                                                .lineLimit(1)
-                                        }
-                                    }
-                                }
-                                .onDelete(perform: removeRecent)
-                            }
-                        }
-                        .listStyle(.plain)
-                    }
-                } else {
+            VStack {
+                if searchText.isEmpty {
                     Title(text: "최근 검색한 항목")
-                    Spacer()
-                    if recentItems.isEmpty {
-                        Text("최근 검색한 항목이 없습니다.")
-                    } else {
-                        List {
-                            Section {
-                                ForEach(recentItems, id: \.self) { keyword in
+
+                    VStack {
+                        if recentItems.isEmpty {
+                            Text("최근 검색한 항목이 없습니다.")
+                                .font(.callout)
+                                .foregroundStyle(.lbl2)
+                                .offset(x: 0, y: 0)
+                        } else {
+                            List {
+                                ForEach(recentItems, id: \.self) {
+                                    keyword in
                                     Button {
                                         searchText = keyword
                                     } label: {
-                                        HStack {
-                                            Text(keyword)
-                                                .lineLimit(1)
-                                        }
+                                        Text(keyword)
+                                            .lineLimit(1)
+                                            .padding(.vertical, 10)
                                     }
+                                    .listRowBackground(
+                                        Color.bg1
+//                                        Rectangle().fill(.bg1)
+                                    )
                                 }
                                 .onDelete(perform: removeRecent)
                             }
+                            .listStyle(.plain)
                         }
-                        .listStyle(.plain)
                     }
-                }
-            } else {
-                Title(text: "검색 결과")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Title(text: "검색 결과")
 
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                    Text("\(filtered.count)개의 항목")
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 20)
-                .padding(.trailing, 10)
-                .padding(.vertical, 10)
+                    HStack(spacing: 5) {
+                        Image(systemName: "magnifyingglass")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 18, height: 18)
+                        Text("\(filtered.count)개의 항목")
+                            .font(.callout.weight(.semibold))
+                    }
+                    .padding(.leading, 20)
+                    .foregroundStyle(.lbl2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                List {
-                    ForEach(filtered) { item in
-                        Button {
-                            Task { @MainActor in
-                                saveRecent(searchText)
-                                audioPlayer.load(item)
-                                audioPlayer.play()
-                            }
-                        } label: {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(item.title)
-                                        .font(.headline)
+                    List {
+                        ForEach(filtered) { item in
+                            HStack {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(
+                                            item.isTitleGenerated
+                                                && !item.title.isEmpty
+                                                ? item.title : "제목 생성중.."
+                                        )
+                                        .font(.callout)
+                                        .foregroundStyle(
+                                            item.isTitleGenerated
+                                                ? .lbl1 : .lbl3
+                                        )
                                         .lineLimit(1)
-                                    HStack(spacing: 8) {
-                                        Text(item.formattedDuration)
-                                        Text("·")
-                                        Text(item.createdAt, style: .date)
+
+                                        Text(
+                                            "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
+                                        )
+                                        .lineLimit(1)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.lbl2)
+                                    }
+
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    audioPlayer.setPlaylist(filtered)
+                                    audioPlayer.load(item)
+                                    audioPlayer.play()
+                                }
+
+                                Button {
+                                    toggleFavorite(item)
+                                } label: {
+                                    Image(
+                                        uiImage: UIImage(
+                                            named: item.isFavorite
+                                                ? "FavoriteOn" : "FavoriteOff"
+                                        )!
+                                    )
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
+                                }
+                                .contentShape(Rectangle())
+                                .frame(width: 44, height: 44)
+                            }
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(.listBg)
+                            )
+                            .listRowSeparator(.hidden)
+                            .padding(5)
+                            .swipeActions(
+                                edge: .leading,
+                                allowsFullSwipe: false
+                            ) {
+                                Button {
+                                    toggleFavorite(item)
+                                } label: {
+                                    VStack {
+                                        Image(
+                                            systemName: item.isFavorite
+                                                ? "star.slash" : "star.fill"
+                                        )
+                                        Text(
+                                            item.isFavorite ? "해제" : "즐겨찾기"
+                                        )
                                     }
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
@@ -127,17 +167,20 @@ struct SearchView: View {
                                         "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
                                     ))
                                 }
-                                Spacer()
+                                .tint(.main)
                             }
-                            .padding(.vertical, 4)
+                            .tag(item.id)
                         }
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .combine)
                     }
-                    .onDelete(perform: delete)
+                    .padding(.horizontal, 20)
+                    .listStyle(.plain)
+                    .listRowSpacing(10)
+                    .scrollContentBackground(.hidden)
                 }
-                .listStyle(.plain)
             }
+            .background(.bg1)
         }
         .searchable(text: $searchText, prompt: "Search")
         .searchFocused($isSearchFocused)
@@ -172,5 +215,14 @@ struct SearchView: View {
 
     private func clearRecent() {
         recentSearch = ""
+    }
+
+    private func toggleFavorite(_ item: Recording) {
+        item.isFavorite.toggle()
+        do { try modelContext.save() } catch {
+            logger.log(
+                "[ArchiveView] favorite save failed: \(String(describing: error))"
+            )
+        }
     }
 }

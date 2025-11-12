@@ -60,8 +60,8 @@ struct RecordView: View {
                     let frameName: String = {
                         guard audioRecorder.isRecording else { return "Record000" }
                         let frameCount = Int(floor(t * fps))
-                        if frameCount > startWaveFrameCount {
-                            return String(format: "Record%02d", frameCount % repeatWaveFrameCount)
+                        if frameCount >= startWaveFrameCount {
+                            return String(format: "Record%02d", (frameCount - startWaveFrameCount) % repeatWaveFrameCount)
                         } else {
                             return String(format: "Record%03d", frameCount % startWaveFrameCount)
                         }
@@ -108,7 +108,7 @@ struct RecordView: View {
                             .foregroundStyle(.lbl1)
                             .monospacedDigit()
                     }
-                    .padding(.top, screenHeight / 4)
+                    .padding(.top, screenHeight / 5)
                     .opacity(audioRecorder.isRecording ? 1 : 0)
 
                     Spacer()
