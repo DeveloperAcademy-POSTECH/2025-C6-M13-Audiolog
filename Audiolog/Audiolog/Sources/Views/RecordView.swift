@@ -120,6 +120,7 @@ struct RecordView: View {
                     MicButtonLabel(isRecording: audioRecorder.isRecording)
                 }
             }
+            .background(.bg1)
             .onAppear {
                 if timelineStart == nil { timelineStart = Date() }
                 locationManager.onLocationUpdate = { location, address in
