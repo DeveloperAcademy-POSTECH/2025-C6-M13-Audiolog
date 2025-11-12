@@ -298,6 +298,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Audiolog/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Audiolog;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "녹음만쓰는데 왜 카메라 권한을 요청하는 지 저도 모르겠어요. 감사합니다.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "녹음된 소리를 저장할 때 장소의 위치를 함께 저장합니다.";
@@ -341,6 +342,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Audiolog/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Audiolog;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSCameraUsageDescription = "녹음만쓰는데 왜 카메라 권한을 요청하는 지 저도 모르겠어요. 감사합니다.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "녹음된 소리를 저장할 때 장소의 위치를 함께 저장합니다.";
