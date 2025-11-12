@@ -38,13 +38,15 @@ enum TitleGuide {
                 let res = try await session.respond(options: opts) {
                     Prompt(prompt)
                 }
-                let t = res.content.trimmingCharacters(
+                let raw = res.content.trimmingCharacters(
                     in: .whitespacesAndNewlines
                 )
-                if !t.isEmpty, !t.contains("\n") {
-                    candidates.append(t)
-                }
+                guard !raw.isEmpty, !raw.contains("\n") else { continue }
 
+                let short = shrinkKoreanTitle(raw, limit: 15)
+                if !short.isEmpty {
+                    candidates.append(short)
+                }
             } catch {
                 let msg = error.localizedDescription.lowercased()
                 if msg.contains("unsupported language")
@@ -72,7 +74,18 @@ enum TitleGuide {
             }
             .sorted { $0.score > $1.score }
 
-        return scored.first?.title
+        if var best = scored.first?.title {
+            best = shrinkKoreanTitle(best, limit: 15)  // 최종 방어
+
+            if let loc = formatKoreanLocationSuffix(from: recording.location),
+                !loc.isEmpty,
+                !best.contains(loc)
+            {
+                best += ", \(loc)"
+            }
+            return best
+        }
+        return nil
     }
 }
 
@@ -91,7 +104,6 @@ private struct TitleContext: Encodable {
     let secondaryTag: String?
     let hintTags: [String]
     let tagWeights: [String: Int]?
-    let location: String?
     let dialog: String?
     let bgmTitle: String?
     let bgmArtist: String?
@@ -102,7 +114,6 @@ private struct TitleContext: Encodable {
 
     let hasVoice: Bool
     let hasWaterAllowed: Bool
-    let hasLocation: Bool
     let hasWalkingCues: Bool
 
     enum CodingKeys: String, CodingKey {
@@ -110,7 +121,6 @@ private struct TitleContext: Encodable {
         case secondaryTag = "부태그"
         case hintTags = "힌트태그"
         case tagWeights = "태그가중치"
-        case location = "위치"
         case dialog = "전사"
         case bgmTitle = "배경음악제목"
         case bgmArtist = "배경음악아티스트"
@@ -119,7 +129,6 @@ private struct TitleContext: Encodable {
         case speechRatio = "음성비율"
         case hasVoice = "음성유무"
         case hasWaterAllowed = "물/파도허용"
-        case hasLocation = "위치제공됨"
     }
 
     init(recording: Recording, weights: [String: Int]?) {
@@ -151,7 +160,6 @@ private struct TitleContext: Encodable {
             dialog = nil
         }
 
-        location = recording.location
         bgmTitle = recording.bgmTitle
         bgmArtist = recording.bgmArtist
 
@@ -179,8 +187,6 @@ private struct TitleContext: Encodable {
         hasWalkingCues =
             ratio(for: ["footsteps", "walking", "walk", "jog", "stroll"])
             >= 0.15
-
-        hasLocation = (recording.location?.isEmpty == false)
     }
 
     func toJSON() -> String {
@@ -434,9 +440,6 @@ private func score(title: String, ctx: TitleContext, policy: TitlePolicy)
     {
         s -= 4.0
     }
-    if !ctx.hasLocation && containsPlaceLikeWord(t) {
-        s -= 5.0
-    }
     // waves 단어인데 비중이 너무 낮음(12% 미만) → 추가 감점
     if (t.contains("파도") || t.contains("바다") || t.contains("해변"))
         && rWaves < 0.12
@@ -468,4 +471,222 @@ private func containsPlaceLikeWord(_ t: String) -> Bool {
         "스튜디오", "해변", "바다",
     ]
     return words.contains { t.contains($0) }
+}
+
+private func formatKoreanLocationSuffix(from location: String?) -> String? {
+    guard let raw = location?.trimmingCharacters(in: .whitespacesAndNewlines),
+        !raw.isEmpty
+    else {
+        logger.log("[LocationDebug] ❌ location이 비어있음")
+        return nil
+    }
+
+    let toks =
+        raw
+        .replacingOccurrences(of: ",", with: " ")
+        .split(whereSeparator: { $0.isWhitespace })
+        .map(String.init)
+
+    if toks.isEmpty {
+        return nil
+    }
+
+    // 접미사 목록
+    let provinceSuffixes = ["특별자치도", "광역시", "특별시", "자치시", "자치도", "도"]
+    let citySuffixes = ["특별자치시", "광역시", "특별시", "자치시", "시"]
+    let districtSuffixes = ["구", "군"]
+    let minorSuffixes = ["읍", "면", "동"]
+
+    func strip(_ s: String, suffixes: [String]) -> String {
+        for suf in suffixes.sorted(by: { $0.count > $1.count }) {
+            if s.hasSuffix(suf) {
+                return String(s.dropLast(suf.count))
+            }
+        }
+        return s
+    }
+
+    // 토큰 내부에서 '...시' 추출 (예: "포항시지곡동" → ("포항시", "지곡동"))
+    func splitCityInToken(_ token: String) -> (
+        cityWithSuffix: String, rest: String
+    )? {
+        let citySufPattern = "(특별자치시|광역시|특별시|자치시|시)"
+        let pattern = "^(.*?\(citySufPattern))(.*)$"
+        if let regex = try? NSRegularExpression(pattern: pattern) {
+            let ns = token as NSString
+            let range = NSRange(location: 0, length: ns.length)
+            if let m = regex.firstMatch(in: token, range: range),
+                m.numberOfRanges >= 3
+            {
+                let cityWithSuffix = ns.substring(with: m.range(at: 1))
+                let rest = ns.substring(with: m.range(at: 3))
+                if !cityWithSuffix.isEmpty {
+                    return (cityWithSuffix, rest)
+                }
+            }
+        }
+        return nil
+    }
+
+    // '구/군' 혹은 '읍/면/동'을 토큰에서 찾거나 내부 분리로 찾기
+    func findAdminUnit(
+        in tokens: [String],
+        prefer: [String],  // ["구","군"] 우선
+        fallback: [String]
+    ) -> (found: String?, kind: String) {
+        // 1) 직접 토큰 끝
+        for t in tokens {
+            if prefer.contains(where: { t.hasSuffix($0) }) {
+                return (t, "prefer")
+            }
+        }
+        // 2) 내부에 붙은 형태 (예: "남구효자동", "지곡동지곡로")
+        if let rg = try? NSRegularExpression(pattern: "(.*?(구|군|읍|면|동))(.*)") {
+            for t in tokens {
+                let ns = t as NSString
+                let range = NSRange(location: 0, length: ns.length)
+                if let m = rg.firstMatch(in: t, range: range),
+                    m.numberOfRanges >= 2
+                {
+                    let part = ns.substring(with: m.range(at: 1))
+                    if prefer.contains(where: { part.hasSuffix($0) }) {
+                        return (part, "prefer")
+                    }
+                }
+            }
+        }
+        // 3) 보조(읍/면/동) 직접 토큰 끝
+        for t in tokens {
+            if fallback.contains(where: { t.hasSuffix($0) }) {
+                return (t, "fallback")
+            }
+        }
+        // 4) 보조 내부 분리
+        if let rg = try? NSRegularExpression(pattern: "(.*?(읍|면|동))(.*)") {
+            for t in tokens {
+                let ns = t as NSString
+                let range = NSRange(location: 0, length: ns.length)
+                if let m = rg.firstMatch(in: t, range: range),
+                    m.numberOfRanges >= 2
+                {
+                    let part = ns.substring(with: m.range(at: 1))
+                    return (part, "fallback")
+                }
+            }
+        }
+        return (nil, "")
+    }
+
+    var i = 0
+    if provinceSuffixes.contains(where: { toks[0].hasSuffix($0) }) {
+        i = 1
+    }
+
+    guard i < toks.count else {
+        return nil
+    }
+
+    // 도시 탐색 (토큰 매칭 → 내부 분리 순)
+    var cityIdx: Int? = nil
+    var cityToken: String?
+    var afterCityRemainderTokens: [String] = []
+
+    for idx in i..<min(i + 3, toks.count) {
+        if citySuffixes.contains(where: { toks[idx].hasSuffix($0) }) {
+            cityIdx = idx
+            cityToken = toks[idx]
+            afterCityRemainderTokens = Array(toks.dropFirst(idx + 1))
+            break
+        }
+    }
+    if cityIdx == nil {
+        for idx in i..<min(i + 3, toks.count) {
+            if let (cityWithSuffix, rest) = splitCityInToken(toks[idx]) {
+                cityIdx = idx
+                cityToken = cityWithSuffix
+                var tail: [String] = []
+                if !rest.trimmingCharacters(in: .whitespaces).isEmpty {
+                    tail.append(rest)
+                }
+                tail.append(contentsOf: toks.dropFirst(idx + 1))
+                afterCityRemainderTokens = tail
+                break
+            }
+        }
+    }
+
+    guard cityIdx != nil, let cityWithSuffix = cityToken else {
+        return nil
+    }
+
+    // 구/군 우선, 없으면 읍/면/동
+    let (unit, kind) = findAdminUnit(
+        in: Array(afterCityRemainderTokens.prefix(4)),
+        prefer: districtSuffixes,
+        fallback: minorSuffixes
+    )
+
+    let cityBase = strip(cityWithSuffix, suffixes: citySuffixes)
+
+    if let u = unit {
+        return "\(cityBase) \(u)"
+    } else {
+        return cityBase
+    }
+}
+
+private func shrinkKoreanTitle(_ s: String, limit: Int = 15) -> String {
+    // 앞뒤 공백 제거
+    var t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    // 불필요한 괄호/따옴표 등 제거
+    let junkPairs: [Character] = [
+        "\"", "“", "”", "'", "’", "‘", "(", ")", "[", "]", "{", "}", "…", "#",
+    ]
+    t.removeAll(where: { junkPairs.contains($0) })
+
+    // 마침표/쉼표/물음표 등으로 너무 긴 문장은 첫 절만
+    if let cut = t.firstIndex(where: { ".,!?;:·•".contains($0) }) {
+        t = String(t[..<cut])
+    }
+
+    // 흔한 수식어 제거(짧게): "오늘의 ", "한가한 ", "작은 ", "조용한 " 등
+    let commonPrefixes = [
+        "오늘의 ", "오늘 ", "한가한 ", "조용한 ", "작은 ", "아주 ", "조금 ", "갑자기 ",
+    ]
+    for p in commonPrefixes {
+        if t.hasPrefix(p) {
+            t.removeFirst(p.count)
+            break
+        }
+    }
+
+    t = t.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    // 최종 길이 제한
+    if t.count > limit {
+        // 말 중간 끊김 최소화: 공백 기준으로 줄여보기
+        let words = t.split(separator: " ").map(String.init)
+        if words.count > 1 {
+            var acc = ""
+            for (idx, w) in words.enumerated() {
+                let next = acc.isEmpty ? w : acc + " " + w
+                if next.count <= limit {
+                    acc = next
+                } else {
+                    // 단어 단위로 안 되면 마지막 단어를 잘라서 제한
+                    if acc.isEmpty {
+                        return String(w.prefix(limit))
+                    } else {
+                        return acc
+                    }
+                }
+                if idx == words.count - 1 { return acc }
+            }
+            return acc.isEmpty ? String(t.prefix(limit)) : acc
+        } else {
+            return String(t.prefix(limit))
+        }
+    }
+    return t
 }
