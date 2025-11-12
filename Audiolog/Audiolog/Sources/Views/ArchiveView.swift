@@ -170,8 +170,8 @@ struct ArchiveView: View {
                         .tag(item.id)
                     }
                 }
+                .padding(.horizontal, 20)
             }
-            .padding(.horizontal, 20)
             .listStyle(.plain)
             .listRowSpacing(10)
             .scrollContentBackground(.hidden)
