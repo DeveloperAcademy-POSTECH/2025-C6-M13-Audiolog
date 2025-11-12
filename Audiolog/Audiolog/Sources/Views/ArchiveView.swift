@@ -47,44 +47,56 @@ struct ArchiveView: View {
                 List(selection: $selection) {
                     ForEach(recordings) { item in
                         HStack {
-                            VStack(alignment: .leading, spacing: 5) {
-                                if editingId == item.id && !isSelecting {
-                                    TextField("제목", text: $tempTitle)
-                                        .focused($isEditingFocused)
-                                        .submitLabel(.done)
-                                        .onSubmit {
-                                            commitEdit(for: item)
-                                        }
-                                        .onAppear {
-                                            isEditingFocused = true
-                                        }
-                                } else {
-                                    Text(
-                                        item.isTitleGenerated
-                                            && !item.title.isEmpty
-                                            ? item.title : "제목 생성중.."
-                                    )
-                                    .font(.callout)
-                                    .foregroundStyle(
-                                        item.isTitleGenerated ? .lbl1 : .lbl3
-                                    )
-                                    .lineLimit(1)
-                                }
-
-                                HStack(spacing: 8) {
-                                    Text(
-                                        item.createdAt.formatted(
-                                            "M월 d일 EEEE, a h:mm"
+                            HStack {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    if editingId == item.id && !isSelecting {
+                                        TextField("제목", text: $tempTitle)
+                                            .focused($isEditingFocused)
+                                            .submitLabel(.done)
+                                            .onSubmit {
+                                                commitEdit(for: item)
+                                            }
+                                            .onAppear {
+                                                isEditingFocused = true
+                                            }
+                                    } else {
+                                        Text(
+                                            item.isTitleGenerated
+                                                && !item.title.isEmpty
+                                                ? item.title : "제목 생성중.."
                                         )
-                                    )
-                                    Text("·")
-                                    Text(item.formattedDuration)
-                                }
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            }
+                                        .font(.callout)
+                                        .foregroundStyle(
+                                            item.isTitleGenerated
+                                                ? .lbl1 : .lbl3
+                                        )
+                                        .lineLimit(1)
+                                    }
 
-                            Spacer()
+                                    HStack(spacing: 8) {
+                                        Text(
+                                            item.createdAt.formatted(
+                                                "M월 d일 EEEE, a h:mm"
+                                            )
+                                        )
+                                        Text("·")
+                                        Text(item.formattedDuration)
+                                    }
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                }
+
+                                Spacer()
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                guard editingId == nil, !isSelecting else {
+                                    return
+                                }
+                                audioPlayer.setPlaylist(recordings)
+                                audioPlayer.load(item)
+                                audioPlayer.play()
+                            }
 
                             Button {
                                 toggleFavorite(item)
@@ -99,9 +111,8 @@ struct ArchiveView: View {
                                 .scaledToFit()
                                 .frame(width: 20, height: 20)
                             }
-                            .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
-                            .accessibilityHidden(true)
+                            .frame(width: 44, height: 44)
                             .disabled(isSelecting || editingId != nil)
                         }
                         .listRowBackground(
@@ -109,15 +120,7 @@ struct ArchiveView: View {
                                 .fill(.listBg)
                         )
                         .listRowSeparator(.hidden)
-                        .padding(.vertical, 5)
-                        .onTapGesture {
-                            guard editingId == nil, !isSelecting else { return }
-                            Task { @MainActor in
-                                audioPlayer.setPlaylist(recordings)
-                                audioPlayer.load(item)
-                                audioPlayer.play()
-                            }
-                        }
+                        .padding(5)
                         .swipeActions(edge: .leading, allowsFullSwipe: false) {
                             if !isSelecting && editingId == nil {
                                 Button {
@@ -126,7 +129,7 @@ struct ArchiveView: View {
                                     VStack {
                                         Image(
                                             systemName: item.isFavorite
-                                            ? "star.slash" : "star.fill"
+                                                ? "star.slash" : "star.fill"
                                         )
                                         Text(item.isFavorite ? "해제" : "즐겨찾기")
                                     }
@@ -186,9 +189,11 @@ struct ArchiveView: View {
                 Text("삭제를 하면 되돌릴 수 없어요.")
             }
             .navigationTitle(navTitle)
-            //            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
-            .environment( \.editMode, .constant(isSelecting ? .active : .inactive) )
+            .environment(
+                \.editMode,
+                .constant(isSelecting ? .active : .inactive)
+            )
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(isSelecting ? "취소" : "선택") {
@@ -228,6 +233,7 @@ struct ArchiveView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .background(.bg1)
         }
         .onAppear {
             if isRecordCreated { isRecordCreated = false }
@@ -263,7 +269,7 @@ struct ArchiveView: View {
         }
     }
 
-    @MainActor private func delete(_ items: [Recording]) {
+    private func delete(_ items: [Recording]) {
         guard !items.isEmpty else { return }
         for it in items { modelContext.delete(it) }
         do { try modelContext.save() } catch {
@@ -297,5 +303,4 @@ struct ArchiveView: View {
             selection = Set(recordings.map { $0.id })
         }
     }
-
 }

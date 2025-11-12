@@ -5,12 +5,28 @@
 //  Created by Sean Cho on 11/5/25.
 //
 
+import SwiftData
 import SwiftUI
 
 struct RecapView: View {
-    // TODO: Memories 눌렀을 때 조회 가능하게
-    private var sampleMemories: [String] {
-        ["즐겨찾기", "2025년 여름", "봄 소리", "가을 산책"]
+    @Query private var recordings: [Recording]
+
+    private var recordingCollections: [String] {
+        var tagToRecordingIDs: [String: Set<ObjectIdentifier>] = [:]
+        for recording in recordings {
+            let uniqueTags = Set(recording.tags ?? [])
+            let id = ObjectIdentifier(recording as AnyObject)
+            for tag in uniqueTags {
+                tagToRecordingIDs[tag, default: []].insert(id)
+            }
+        }
+
+        let popularTags =
+            tagToRecordingIDs
+            .filter { $0.value.count >= 3 }
+            .map { $0.key }
+            .sorted()
+        return popularTags
     }
 
     var recapCategoryButtonWidth: CGFloat {
@@ -25,23 +41,68 @@ struct RecapView: View {
                     GridItem(.flexible(), spacing: 20),
                 ]
                 LazyVGrid(columns: columns, spacing: 20) {
-                    ForEach(sampleMemories, id: \.self) { title in
+                    let thumbnailName = "Thumbnail0"
+
+                    NavigationLink {
+                        let favoriteRecordings = recordings.filter {
+                            ($0 as Recording).isFavorite == true
+                        }
+                        PlaylistView(
+                            recordings: favoriteRecordings,
+                            thumbnailName: thumbnailName,
+                            playlistTitle: "즐겨찾기"
+                        )
+                    } label: {
                         ZStack {
-                            RoundedRectangle(cornerRadius: 20)
-                                .fill(Color.gray.opacity(0.2))
+                            Image(thumbnailName)
+                                .resizable()
+                                .cornerRadius(20)
                                 .frame(
                                     width: recapCategoryButtonWidth,
                                     height: recapCategoryButtonWidth
                                 )
-                            Text(title)
-                                .font(.headline)
-                                .foregroundStyle(.secondary)
+                            Text("즐겨찾기")
+                                .font(.title3.bold())
+                                .foregroundStyle(.white)
+                        }
+                    }
+
+                    ForEach(recordingCollections, id: \.self) { tag in
+                        let thumbnailName =
+                            "Thumbnail\(((abs(tag.hashValue) % 7) + 1))"
+                        NavigationLink {
+                            let filteredRecordings = recordings.filter {
+                                recording in
+                                guard let tags = recording.tags else {
+                                    return false
+                                }
+                                return tags.contains(tag)
+                            }
+                            PlaylistView(
+                                recordings: filteredRecordings,
+                                thumbnailName: thumbnailName,
+                                playlistTitle: tag
+                            )
+                        } label: {
+                            ZStack {
+                                Image(thumbnailName)
+                                    .resizable()
+                                    .cornerRadius(20)
+                                    .frame(
+                                        width: recapCategoryButtonWidth,
+                                        height: recapCategoryButtonWidth
+                                    )
+                                Text(tag)
+                                    .font(.title3.bold())
+                                    .foregroundStyle(.white)
+                            }
                         }
                     }
                 }
                 .padding(.horizontal, 20)
             }
-            .navigationTitle("추억 보관함")
+            .background(.bg1)
+            .navigationTitle("추천 로그")
         }
     }
 }
