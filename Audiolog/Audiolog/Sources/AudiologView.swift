@@ -10,7 +10,8 @@ import SwiftUI
 
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
-
+    private let audioProcesser = AudioProcesser()
+    
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: [
@@ -30,7 +31,7 @@ struct AudiologView: View {
                 systemImage: "microphone",
                 value: "녹음"
             ) {
-                RecordView(isRecordCreated: $isRecordCreated)
+                RecordView(audioProcesser: audioProcesser, isRecordCreated: $isRecordCreated)
             }
 
             Tab(
