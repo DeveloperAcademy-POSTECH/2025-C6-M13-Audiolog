@@ -68,7 +68,7 @@ struct AudiologView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 58)
                 .padding(.horizontal, 20)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .transition(.opacity)
             }
         }
         .environment(audioPlayer)
