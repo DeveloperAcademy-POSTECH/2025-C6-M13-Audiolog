@@ -77,17 +77,12 @@ struct PlaylistView: View {
                                     )
                                     .lineLimit(1)
 
-                                    HStack(spacing: 8) {
-                                        Text(
-                                            item.createdAt.formatted(
-                                                "M월 d일 EEEE, a h:mm"
-                                            )
-                                        )
-                                        Text("·")
-                                        Text(item.formattedDuration)
-                                    }
+                                    Text(
+                                        "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
+                                    )
+                                    .lineLimit(1)
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(.lbl2)
                                 }
 
                                 Spacer()
