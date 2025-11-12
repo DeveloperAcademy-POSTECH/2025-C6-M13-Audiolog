@@ -160,11 +160,19 @@ struct SearchView: View {
                                             item.isFavorite ? "해제" : "즐겨찾기"
                                         )
                                     }
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityElement(children: .ignore)
+                                    .accessibilityLabel(Text(
+                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                    ))
                                 }
                                 .tint(.main)
                             }
                             .tag(item.id)
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityElement(children: .combine)
                     }
                     .padding(.horizontal, 20)
                     .listStyle(.plain)
