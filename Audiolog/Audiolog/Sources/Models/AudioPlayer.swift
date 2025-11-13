@@ -57,7 +57,10 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
         } else {
             nextIndex = 0
         }
-        guard nextIndex < playlist.count else { return }
+        guard nextIndex < playlist.count else {
+            isPlaying = false
+            return
+        }
         currentIndex = nextIndex
         let item = playlist[nextIndex]
         load(item)
@@ -206,7 +209,7 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     private func startNowPlayingUpdates() {
         progressTimer?.invalidate()
         progressTimer = Timer.scheduledTimer(
-            withTimeInterval: 0.5,
+            withTimeInterval: 0.2,
             repeats: true
         ) { [weak self] _ in
             guard let self, let current = self.current else { return }

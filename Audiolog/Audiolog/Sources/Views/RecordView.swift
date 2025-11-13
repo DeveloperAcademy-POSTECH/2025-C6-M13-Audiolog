@@ -140,6 +140,16 @@ struct RecordView: View {
                     MicButtonLabel(isRecording: audioRecorder.isRecording)
                 }
             }
+            .overlay(alignment: .bottom) {
+                VStack {
+                    Spacer()
+                    MiniPlayerView()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 10)
+                .padding(.horizontal, 20)
+                .transition(.opacity)
+            }
             .background(.bg1)
             .onAppear {
                 if timelineStart == nil { timelineStart = Date() }

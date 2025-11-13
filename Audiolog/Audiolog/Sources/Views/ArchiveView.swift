@@ -18,14 +18,14 @@ struct ArchiveView: View {
     ]) private var recordings: [Recording]
 
     @Binding var isRecordCreated: Bool
-    @Binding var isSelecting: Bool
-
+    
     @State private var editingId: UUID?
     @State private var tempTitle: String = ""
     @FocusState private var isEditingFocused: Bool
     @State private var pendingDelete: Recording?
     @State private var isShowingDeleteAlert: Bool = false
     @State private var selection = Set<UUID>()
+    @State private var isSelecting: Bool = false
 
     private var navTitle: String {
         if isSelecting {
@@ -173,6 +173,18 @@ struct ArchiveView: View {
                 }
                 .padding(.horizontal, 20)
                 .accessibilitySortPriority(3)
+            }
+            .overlay(alignment: .bottom) {
+                if !isSelecting {
+                    VStack {
+                        Spacer()
+                        MiniPlayerView()
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.bottom, 10)
+                    .padding(.horizontal, 20)
+                    .transition(.opacity)
+                }
             }
             .listStyle(.plain)
             .listRowSpacing(10)

@@ -86,9 +86,11 @@ struct PlaylistView: View {
                                     .lineLimit(1)
                                     .font(.subheadline)
                                     .foregroundStyle(.lbl2)
-                                    .accessibilityLabel(Text(
-                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
-                                    ))
+                                    .accessibilityLabel(
+                                        Text(
+                                            "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                        )
+                                    )
                                 }
 
                                 Spacer()
@@ -147,6 +149,16 @@ struct PlaylistView: View {
                 .listRowSpacing(10)
                 .scrollContentBackground(.hidden)
                 .scrollIndicators(.hidden)
+            }
+            .overlay(alignment: .bottom) {
+                VStack {
+                    Spacer()
+                    MiniPlayerView()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 10)
+                .padding(.horizontal, 20)
+                .transition(.opacity)
             }
         }
         .background(.bg1)

@@ -102,6 +102,16 @@ struct RecapView: View {
                 .padding(.horizontal, 20)
             }
             .background(.bg1)
+            .overlay(alignment: .bottom) {
+                VStack {
+                    Spacer()
+                    MiniPlayerView()
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 10)
+                .padding(.horizontal, 20)
+                .transition(.opacity)
+            }
             .navigationTitle("추천 로그")
         }
     }

@@ -180,6 +180,18 @@ struct SearchView: View {
                     .scrollContentBackground(.hidden)
                 }
             }
+            .overlay(alignment: .bottom) {
+                VStack {
+                    Spacer()
+                    if !isSearchFocused {
+                        MiniPlayerView()
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 10)
+                .padding(.horizontal, 20)
+                .transition(.opacity)
+            }
             .background(.bg1)
         }
         .searchable(text: $searchText, prompt: "Search")

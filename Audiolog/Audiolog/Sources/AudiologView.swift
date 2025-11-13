@@ -22,7 +22,6 @@ struct AudiologView: View {
     @State private var isPresentingPlayerSheet: Bool = false
     @State private var isReprocessingPending = false
     @State private var isRecordCreated: Bool = false
-    @State private var isSelecting: Bool = false
 
     var body: some View {
         TabView(selection: $currentTab) {
@@ -39,7 +38,7 @@ struct AudiologView: View {
                 systemImage: "play.square.stack.fill",
                 value: "전체 로그"
             ) {
-                ArchiveView(isRecordCreated: $isRecordCreated, isSelecting: $isSelecting)
+                ArchiveView(isRecordCreated: $isRecordCreated)
             }
             .badge(isRecordCreated ? Text("N") : nil)
 
@@ -58,18 +57,6 @@ struct AudiologView: View {
                 role: .search
             ) {
                 SearchView()
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if !isSelecting {
-                VStack {
-                    Spacer()
-                    MiniPlayerView()
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 58)
-                .padding(.horizontal, 20)
-                .transition(.opacity)
             }
         }
         .environment(audioPlayer)
