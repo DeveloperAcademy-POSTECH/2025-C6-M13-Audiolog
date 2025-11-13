@@ -25,6 +25,7 @@ struct PlaylistView: View {
                             .resizable()
                             .cornerRadius(15)
                             .frame(width: 80, height: 80)
+                            .accessibilityHidden(true)
 
                         VStack(alignment: .leading, spacing: 0) {
                             Text(playlistTitle)
@@ -35,6 +36,7 @@ struct PlaylistView: View {
                                 .font(.footnote.weight(.semibold))
                                 .foregroundColor(.lbl2)
                         }
+                        .accessibilityElement(children: .combine)
 
                         Spacer()
 
@@ -56,6 +58,7 @@ struct PlaylistView: View {
                         }
                         .frame(width: 71, height: 38)
                         .glassEffect(.regular.tint(.main))
+                        .accessibilityLabel(Text("\(playlistTitle) 재생"))
                     }
                     .listRowBackground(
                         Rectangle().fill(.clear).frame(height: 80)
@@ -83,6 +86,9 @@ struct PlaylistView: View {
                                     .lineLimit(1)
                                     .font(.subheadline)
                                     .foregroundStyle(.lbl2)
+                                    .accessibilityLabel(Text(
+                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                    ))
                                 }
 
                                 Spacer()
@@ -109,6 +115,7 @@ struct PlaylistView: View {
                             }
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
+                            .accessibilityHidden(true)
                         }
                         .listRowBackground(
                             RoundedRectangle(cornerRadius: 15)
@@ -125,12 +132,14 @@ struct PlaylistView: View {
                                         systemName: item.isFavorite
                                             ? "star.slash" : "star.fill"
                                     )
-                                    Text(item.isFavorite ? "해제" : "즐겨찾기")
+                                    Text(item.isFavorite ? "즐겨찾기 해제" : "즐겨찾기")
                                 }
                             }
                             .tint(.main)
                         }
                         .tag(item.id)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityAddTraits(.isButton)
                     }
                 }
                 .padding(.horizontal, 20)

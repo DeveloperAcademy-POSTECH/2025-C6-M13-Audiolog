@@ -193,6 +193,9 @@ struct MiniPlayerView: View {
         }
         .glassEffect(in: .rect(cornerRadius: 34))
         .animation(.default, value: audioPlayer.isPlaying)
+        .accessibilityAction(.magicTap) {
+            audioPlayer.togglePlayPause()
+        }
     }
 
     private func formatTime(_ time: Double) -> String {

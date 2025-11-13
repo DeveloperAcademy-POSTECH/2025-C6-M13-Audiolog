@@ -22,7 +22,7 @@ struct MicButtonLabel: View {
             .frame(width: 118, height: 118)
             .background(
                 ZStack {
-                    Circle().fill(.main)
+                    Circle().fill(.main.opacity(0.8))
                     Circle().fill(.ultraThinMaterial)
                     Circle()
                         .stroke(
@@ -44,6 +44,7 @@ struct MicButtonLabel: View {
                 }
             )
             .glassEffect(.regular.interactive())
+            .accessibilityLabel(isRecording ? "중단" : "녹음")
             .onAppear {
                 startMotionUpdates()
             }

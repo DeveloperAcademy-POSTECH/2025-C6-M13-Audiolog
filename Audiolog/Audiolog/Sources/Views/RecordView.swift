@@ -14,7 +14,7 @@ struct RecordView: View {
     let audioProcesser: AudioProcesser
 
     @State private var audioRecorder = AudioRecorder()
-    @State private var timelineStart: Date? = nil
+    @State private var timelineStart: Date?
 
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.modelContext) private var modelContext
@@ -27,6 +27,8 @@ struct RecordView: View {
 
     @State private var showToast: Bool = false
     @Binding var isRecordCreated: Bool
+
+    @AccessibilityFocusState private var voFocused: Bool
 
     private var pulsingOpacity: Double {
         let t = audioRecorder.timeElapsed
@@ -67,10 +69,11 @@ struct RecordView: View {
                             return "Record000"
                         }
                         let frameCount = Int(floor(t * fps))
-                        if frameCount > startWaveFrameCount {
+                        if frameCount >= startWaveFrameCount {
                             return String(
                                 format: "Record%02d",
-                                frameCount % repeatWaveFrameCount
+                                (frameCount - startWaveFrameCount)
+                                    % repeatWaveFrameCount
                             )
                         } else {
                             return String(
@@ -104,8 +107,10 @@ struct RecordView: View {
                     )
                     .opacity(audioRecorder.isRecording ? 0 : 1)
                     .padding(.top, 30)
+                    .accessibilityFocused($voFocused)
                     Spacer()
                 }
+                .accessibilitySortPriority(1)
 
                 VStack {
                     HStack(spacing: 10) {
@@ -119,7 +124,7 @@ struct RecordView: View {
                             .foregroundStyle(.lbl1)
                             .monospacedDigit()
                     }
-                    .padding(.top, screenHeight / 4)
+                    .padding(.top, screenHeight / 5)
                     .opacity(audioRecorder.isRecording ? 1 : 0)
 
                     Spacer()
@@ -150,6 +155,9 @@ struct RecordView: View {
                 }
                 audioRecorder.setupCaptureSession()
                 locationManager.requestLocation()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    voFocused = true
+                }
             }
             .onDisappear {
                 if audioRecorder.isRecording {
@@ -166,6 +174,9 @@ struct RecordView: View {
                     await stopAndPersistRecordingOnScenePhaseChange()
                 }
             }
+        }
+        .accessibilityAction(.magicTap) {
+            handleRecordButtonTapped()
         }
     }
 
