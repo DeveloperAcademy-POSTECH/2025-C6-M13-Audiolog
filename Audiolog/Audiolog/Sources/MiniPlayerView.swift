@@ -33,41 +33,48 @@ struct MiniPlayerView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 14)
 
-                TimelineView(.periodic(from: .now, by: 0.5)) { _ in
-                    let duration = max(audioPlayer.totalDuration, 1)
-                    let currentTime = isScrubbing ? scrubTime : audioPlayer.currentPlaybackTime
+                let duration = max(audioPlayer.audioLengthSeconds, 1)
+                let currentTime =
+                    isScrubbing ? scrubTime : audioPlayer.currentPlaybackTime
 
-                    VStack(spacing: 4) {
-                        Slider(
-                            value: Binding(
-                                get: {
-                                    isScrubbing ? scrubTime : audioPlayer.currentPlaybackTime
-                                },
-                                set: { newValue in
+                VStack(spacing: 4) {
+                    Slider(
+                        value: Binding(
+                            get: { currentTime },
+                            set: { newValue in
+                                let clamped = min(max(newValue, 0), duration)
+                                scrubTime = clamped
+                            }
+                        ),
+                        in: 0...duration,
+                        onEditingChanged: { editing in
+                            if editing {
+                                DispatchQueue.main.async {
                                     isScrubbing = true
-                                    scrubTime = min(max(newValue, 0), duration)
+                                    scrubTime = audioPlayer.currentPlaybackTime
                                 }
-                            ),
-                            in: 0...duration,
-                            onEditingChanged: { editing in
-                                if !editing {
+                            } else {
+                                DispatchQueue.main.async {
                                     isScrubbing = false
-                                    audioPlayer.seek(to: scrubTime)
                                 }
                             }
-                        )
-                        .tint(.lbl1)
-
-                        HStack {
-                            Text(formatTime(currentTime))
-                            Spacer()
-                            Text(formatTime(duration))
                         }
-                        .font(.footnote.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.lbl3)
+                    )
+                    .tint(.lbl1)
+                    .onChange(of: isScrubbing) { _, newValue in
+                        if newValue == false {
+                            audioPlayer.seek(to: scrubTime)
+                        }
                     }
-                    .frame(height: 28)
+
+                    HStack {
+                        Text(formatTime(currentTime))
+                        Spacer()
+                        Text(formatTime(duration))
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.lbl3)
                 }
                 .frame(height: 28)
                 .padding(.horizontal, 20)
@@ -83,7 +90,7 @@ struct MiniPlayerView: View {
                     }
 
                     Button {
-                        audioPlayer.skipBackward5()
+                        audioPlayer.skip(forwards: false)
                     } label: {
                         Image(systemName: "gobackward.5")
                             .resizable()
@@ -105,7 +112,7 @@ struct MiniPlayerView: View {
                     }
 
                     Button {
-                        audioPlayer.skipForward5()
+                        audioPlayer.skip(forwards: true)
                     } label: {
                         Image(systemName: "goforward.5")
                             .resizable()
