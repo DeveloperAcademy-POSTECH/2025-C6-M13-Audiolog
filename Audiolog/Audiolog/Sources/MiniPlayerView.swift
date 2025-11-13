@@ -35,86 +35,39 @@ struct MiniPlayerView: View {
 
                 TimelineView(.periodic(from: .now, by: 0.5)) { _ in
                     let duration = max(audioPlayer.totalDuration, 1)
-                    let currentTime =
-                        isScrubbing
-                        ? scrubTime
-                        : audioPlayer.currentPlaybackTime
-                    GeometryReader { proxy in
-                        let width = max(proxy.size.width, 1)
-                        let clampedCurrent = min(
-                            max(currentTime, 0),
-                            duration
-                        )
-                        let progress =
-                            duration > 0 ? clampedCurrent / duration : 0
+                    let currentTime = isScrubbing ? scrubTime : audioPlayer.currentPlaybackTime
 
-                        VStack {
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(
-                                    cornerRadius: 3,
-                                    style: .continuous
-                                )
-                                .fill(.lbl3)
-                                .frame(height: 7)
-
-                                RoundedRectangle(
-                                    cornerRadius: 3,
-                                    style: .continuous
-                                )
-                                .fill(.lbl1)
-                                .frame(
-                                    width: max(
-                                        0,
-                                        min(width * progress, width)
-                                    ),
-                                    height: 7
-                                )
-                            }
-
-                            Spacer()
-
-                            HStack {
-                                Text(formatTime(currentTime))
-                                Spacer()
-                                Text(formatTime(duration))
-                            }
-                            .font(.footnote.weight(.semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(.lbl3)
-                        }
-                        .frame(height: 28)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
+                    VStack(spacing: 4) {
+                        Slider(
+                            value: Binding(
+                                get: {
+                                    isScrubbing ? scrubTime : audioPlayer.currentPlaybackTime
+                                },
+                                set: { newValue in
                                     isScrubbing = true
-                                    let x = min(
-                                        max(0, value.location.x),
-                                        width
-                                    )
-                                    let ratio = width > 0 ? x / width : 0
-                                    let newTime = ratio * duration
-                                    scrubTime = min(
-                                        max(newTime, 0),
-                                        duration
-                                    )
+                                    scrubTime = min(max(newValue, 0), duration)
                                 }
-                                .onEnded { value in
-                                    let x = min(
-                                        max(0, value.location.x),
-                                        width
-                                    )
-                                    let ratio = width > 0 ? x / width : 0
-                                    let newTime = ratio * duration
-                                    scrubTime = min(
-                                        max(newTime, 0),
-                                        duration
-                                    )
+                            ),
+                            in: 0...duration,
+                            onEditingChanged: { editing in
+                                if !editing {
                                     isScrubbing = false
                                     audioPlayer.seek(to: scrubTime)
                                 }
+                            }
                         )
+                        .tint(.lbl1)
+
+                        HStack {
+                            Text(formatTime(currentTime))
+                            Spacer()
+                            Text(formatTime(duration))
+                        }
+                        .font(.footnote.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(.lbl3)
                     }
+                    .frame(height: 28)
                 }
                 .frame(height: 28)
                 .padding(.horizontal, 20)

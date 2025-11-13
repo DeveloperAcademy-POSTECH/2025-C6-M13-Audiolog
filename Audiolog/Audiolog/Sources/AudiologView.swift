@@ -74,6 +74,8 @@ struct AudiologView: View {
         }
         .environment(audioPlayer)
         .task {
+            let emptyThumb = UIImage()
+            UISlider.appearance().setThumbImage(emptyThumb, for: .normal)
             await reprocessPendingTitlesIfNeeded()
         }
     }
