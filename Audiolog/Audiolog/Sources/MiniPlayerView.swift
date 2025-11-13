@@ -149,6 +149,7 @@ struct MiniPlayerView: View {
         .accessibilityAction(.magicTap) {
             audioPlayer.togglePlayPause()
         }
+        .contentShape(Rectangle())
     }
 
     private func formatTime(_ time: Double) -> String {

@@ -32,8 +32,6 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
         player?.duration ?? 0
     }
 
-    var onRecordingFinished: (() -> Void)?
-
     private var player: AVAudioPlayer?
     private var progressTimer: Timer?
     private var commandsConfigured = false
@@ -103,6 +101,12 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
         }
         player?.prepareToPlay()
         current = recording
+
+        if let idx = playlist.firstIndex(where: { $0.id == recording.id }) {
+            currentIndex = idx
+        } else {
+            currentIndex = nil
+        }
     }
 
     func play() {
@@ -186,22 +190,7 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
         successfully flag: Bool
     ) {
         if flag {
-            stopNowPlayingUpdates()
-            if let currentSong = current {
-                updateNowPlayingInfo(recording: currentSong)
-            }
-            if let idx = currentIndex {
-                let next = idx + 1
-                if next < playlist.count {
-                    currentIndex = next
-                    let item = playlist[next]
-                    load(item)
-                    play()
-                    return
-                }
-            }
-            onRecordingFinished?()
-        } else {
+            playNextInPlaylist()
         }
     }
 
