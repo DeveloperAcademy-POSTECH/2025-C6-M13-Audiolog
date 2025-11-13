@@ -26,6 +26,7 @@ struct RecordView: View {
     @State private var currentWeather = ""
 
     @State private var showToast: Bool = false
+    @State private var isBusy: Bool = false
     @Binding var isRecordCreated: Bool
 
     @AccessibilityFocusState private var voFocused: Bool
@@ -135,7 +136,13 @@ struct RecordView: View {
                     .offset(y: -112)
 
                 Button {
+                    guard !isBusy else { return }
+                    isBusy = true
                     handleRecordButtonTapped()
+                    Task {
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        isBusy = false
+                    }
                 } label: {
                     MicButtonLabel(isRecording: audioRecorder.isRecording)
                 }
