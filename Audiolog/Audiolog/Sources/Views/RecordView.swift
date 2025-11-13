@@ -53,8 +53,7 @@ struct RecordView: View {
 
                 TimelineView(
                     .animation(
-                        minimumInterval: 1.0 / 24.0,
-                        paused: !audioRecorder.isRecording
+                        minimumInterval: 1.0 / 24.0
                     )
                 ) { context in
                     let startWaveFrameCount = 90
@@ -65,9 +64,6 @@ struct RecordView: View {
                     let t = context.date.timeIntervalSince(baseline)
 
                     let frameName: String = {
-                        guard audioRecorder.isRecording else {
-                            return "Record000"
-                        }
                         let frameCount = Int(floor(t * fps))
                         if frameCount >= startWaveFrameCount {
                             return String(
@@ -95,7 +91,11 @@ struct RecordView: View {
                             .accessibilityHidden(true)
                     }
                 }
-                .opacity(audioRecorder.isRecording ? 1 : 0.1)
+                .opacity(audioRecorder.isRecording ? 1 : 0)
+                .animation(
+                    .easeInOut(duration: 1),
+                    value: audioRecorder.isRecording
+                )
 
                 VStack {
                     Title3(
@@ -240,8 +240,6 @@ struct RecordView: View {
     private func handleRecordButtonTapped() {
         if audioRecorder.isRecording {
             Task {
-                timelineStart = nil
-
                 let fileName = audioRecorder.fileName
                 let documentURL = getDocumentURL()
 
@@ -309,7 +307,6 @@ struct RecordView: View {
         } else {
             logger.log("[RecordView] Starting recording...")
             audioRecorder.startRecording()
-            timelineStart = Date()
             logger.log(
                 "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
             )
