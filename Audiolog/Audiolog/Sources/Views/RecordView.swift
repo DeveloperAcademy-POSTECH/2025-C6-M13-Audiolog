@@ -11,6 +11,8 @@ import SwiftData
 import SwiftUI
 
 struct RecordView: View {
+    let audioProcesser: AudioProcesser
+
     @State private var audioRecorder = AudioRecorder()
     @State private var timelineStart: Date?
 
@@ -142,6 +144,7 @@ struct RecordView: View {
             .onAppear {
                 if timelineStart == nil { timelineStart = Date() }
                 locationManager.onLocationUpdate = { location, address in
+
                     self.currentLocation = address
                     Task {
                         self.currentWeather =
@@ -218,9 +221,7 @@ struct RecordView: View {
                 "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
             )
         }
-
-        let processor = AudioProcesser()  // DI 사용 시 주입 인스턴스로 교체
-        await processor.processAudio(for: recording, modelContext: modelContext)
+        await audioProcesser.enqueueProcess(for: recording, modelContext: modelContext)
     }
 
     private func handleRecordButtonTapped() {
@@ -282,8 +283,7 @@ struct RecordView: View {
                         )
                     }
 
-                    let processor = AudioProcesser()
-                    await processor.processAudio(
+                    await audioProcesser.enqueueProcess(
                         for: recording,
                         modelContext: modelContext
                     )
