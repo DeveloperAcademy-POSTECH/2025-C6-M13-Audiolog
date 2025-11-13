@@ -10,7 +10,8 @@ import SwiftUI
 
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
-
+    private let audioProcesser = AudioProcesser()
+    
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: [
@@ -30,7 +31,7 @@ struct AudiologView: View {
                 systemImage: "microphone",
                 value: "녹음"
             ) {
-                RecordView(isRecordCreated: $isRecordCreated)
+                RecordView(audioProcesser: audioProcesser, isRecordCreated: $isRecordCreated)
             }
 
             Tab(
@@ -73,6 +74,8 @@ struct AudiologView: View {
         }
         .environment(audioPlayer)
         .task {
+            let emptyThumb = UIImage()
+            UISlider.appearance().setThumbImage(emptyThumb, for: .normal)
             await reprocessPendingTitlesIfNeeded()
         }
     }
@@ -104,7 +107,7 @@ struct AudiologView: View {
                 continue
             }
             let processor = AudioProcesser()
-            await processor.processAudio(for: target, modelContext: modelContext)
+            await processor.enqueueProcess(for: target, modelContext: modelContext)
         }
         logger.log("[AudiologView] Reprocess done.")
     }

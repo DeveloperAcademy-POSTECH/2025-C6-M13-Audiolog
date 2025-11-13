@@ -11,7 +11,6 @@ import FoundationModels
 // MARK: - Public API
 
 enum TitleGuide {
-    @MainActor
     static func generateTitle(
         for recording: Recording,
         using session: LanguageModelSession,
@@ -22,6 +21,11 @@ enum TitleGuide {
 
         let ctxObj = TitleContext(recording: recording, weights: tagWeights)
         let ctxJSON = ctxObj.toJSON()
+
+        let maxRatio = ctxObj.ratios.values.max() ?? 0
+        if maxRatio < 0.20 {
+            return "분석 실패, 상황을 수정해주세요"
+        }
 
         let prompt = buildUserPrompt(
             contextJSON: ctxJSON,
@@ -43,7 +47,16 @@ enum TitleGuide {
                 )
                 guard !raw.isEmpty, !raw.contains("\n") else { continue }
 
-                let short = shrinkKoreanTitle(raw, limit: 15)
+                let allowLongMusic = allowsLongMusicTitle(
+                    raw: raw,
+                    recording: recording,
+                    ctx: ctxObj
+                )
+                let short =
+                    allowLongMusic
+                    ? shrinkKoreanTitle(raw, limit: 64)
+                    : shrinkKoreanTitle(raw, limit: 15)
+
                 if !short.isEmpty {
                     candidates.append(short)
                 }
@@ -52,12 +65,14 @@ enum TitleGuide {
                 if msg.contains("unsupported language")
                     || msg.contains("language")
                 {
+                    // 로컬 폴백(한 줄 한국어)
                     let fallback = """
                         한국어 한 문장 제목만 출력하세요. 따옴표/이모지/해시태그 금지.
                         입력:
                         \(ctxJSON)
                         출력: 한국어 한 문장.
                         """
+                    // (선택) fallback으로 한 번 더 시도하려면 여기서 session.respond 호출 가능
                 }
             }
         }
@@ -75,11 +90,18 @@ enum TitleGuide {
             .sorted { $0.score > $1.score }
 
         if var best = scored.first?.title {
-            best = shrinkKoreanTitle(best, limit: 15)  // 최종 방어
+            // (C) 최종 방어 축약도 음악 메타 제목은 해제
+            let allowLongMusicFinal = allowsLongMusicTitle(
+                raw: best,
+                recording: recording,
+                ctx: ctxObj
+            )
+            if !allowLongMusicFinal {
+                best = shrinkKoreanTitle(best, limit: 15)
+            }
 
             if let loc = formatKoreanLocationSuffix(from: recording.location),
-                !loc.isEmpty,
-                !best.contains(loc)
+                !loc.isEmpty, !best.contains(loc)
             {
                 best += ", \(loc)"
             }
@@ -87,6 +109,36 @@ enum TitleGuide {
         }
         return nil
     }
+}
+
+// 음악 메타 제목(가수-제목/제목, 가수)을 허용할지 판단
+private func allowsLongMusicTitle(raw: String, recording: Recording, ctx: Any)
+    -> Bool
+{
+    // 주/부 태그가 music/singing/instrument 계열이면 우선 가점
+    let primary = (ctx as? TitleContext)?.primaryTag?.lowercased() ?? ""
+    let musicy = [
+        "music", "singing", "instrument", "song", "guitar", "piano", "keyboard",
+        "drum",
+    ]
+    .contains { primary.contains($0) }
+
+    // 녹음에서 이미 매칭된 BGM 메타가 있으면 그 문자열 포함 여부로 거의 확정
+    let title = (recording.bgmTitle ?? "").trimmingCharacters(in: .whitespaces)
+    let artist = (recording.bgmArtist ?? "").trimmingCharacters(
+        in: .whitespaces
+    )
+
+    // "제목, 가수" 또는 "가수 - 제목" 같이 구분자가 들어간 경우 허용
+    let looksLikeMetaSeparator =
+        raw.contains(",") || raw.contains(" - ") || raw.contains("—")
+
+    // BGM 메타가 있고, 원문에 둘 중 하나 이상이 포함되면 장문 허용
+    let containsMeta =
+        (!title.isEmpty && raw.contains(title))
+        || (!artist.isEmpty && raw.contains(artist))
+
+    return musicy && (containsMeta || looksLikeMetaSeparator)
 }
 
 // MARK: - Generated schema

@@ -11,8 +11,10 @@ import SwiftData
 import SwiftUI
 
 struct RecordView: View {
+    let audioProcesser: AudioProcesser
+
     @State private var audioRecorder = AudioRecorder()
-    @State private var timelineStart: Date? = nil
+    @State private var timelineStart: Date?
 
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.modelContext) private var modelContext
@@ -25,6 +27,8 @@ struct RecordView: View {
 
     @State private var showToast: Bool = false
     @Binding var isRecordCreated: Bool
+
+    @AccessibilityFocusState private var voFocused: Bool
 
     private var pulsingOpacity: Double {
         let t = audioRecorder.timeElapsed
@@ -47,7 +51,12 @@ struct RecordView: View {
                     .blur(radius: 60)
                     .offset(x: 0, y: 0)
 
-                TimelineView(.animation(minimumInterval: 1.0/24.0, paused: !audioRecorder.isRecording)) { context in
+                TimelineView(
+                    .animation(
+                        minimumInterval: 1.0 / 24.0,
+                        paused: !audioRecorder.isRecording
+                    )
+                ) { context in
                     let startWaveFrameCount = 129
                     let repeatWaveFrameCount = 59
                     let fps: Double = 24
@@ -56,12 +65,21 @@ struct RecordView: View {
                     let t = context.date.timeIntervalSince(baseline)
 
                     let frameName: String = {
-                        guard audioRecorder.isRecording else { return "Record000" }
+                        guard audioRecorder.isRecording else {
+                            return "Record000"
+                        }
                         let frameCount = Int(floor(t * fps))
-                        if frameCount > startWaveFrameCount {
-                            return String(format: "Record%02d", frameCount % repeatWaveFrameCount)
+                        if frameCount >= startWaveFrameCount {
+                            return String(
+                                format: "Record%02d",
+                                (frameCount - startWaveFrameCount)
+                                    % repeatWaveFrameCount
+                            )
                         } else {
-                            return String(format: "Record%03d", frameCount % startWaveFrameCount)
+                            return String(
+                                format: "Record%03d",
+                                frameCount % startWaveFrameCount
+                            )
                         }
                     }()
 
@@ -89,8 +107,10 @@ struct RecordView: View {
                     )
                     .opacity(audioRecorder.isRecording ? 0 : 1)
                     .padding(.top, 30)
+                    .accessibilityFocused($voFocused)
                     Spacer()
                 }
+                .accessibilitySortPriority(1)
 
                 VStack {
                     HStack(spacing: 10) {
@@ -104,7 +124,7 @@ struct RecordView: View {
                             .foregroundStyle(.lbl1)
                             .monospacedDigit()
                     }
-                    .padding(.top, screenHeight / 4)
+                    .padding(.top, screenHeight / 5)
                     .opacity(audioRecorder.isRecording ? 1 : 0)
 
                     Spacer()
@@ -124,6 +144,7 @@ struct RecordView: View {
             .onAppear {
                 if timelineStart == nil { timelineStart = Date() }
                 locationManager.onLocationUpdate = { location, address in
+
                     self.currentLocation = address
                     Task {
                         self.currentWeather =
@@ -134,6 +155,9 @@ struct RecordView: View {
                 }
                 audioRecorder.setupCaptureSession()
                 locationManager.requestLocation()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    voFocused = true
+                }
             }
             .onDisappear {
                 if audioRecorder.isRecording {
@@ -150,6 +174,9 @@ struct RecordView: View {
                     await stopAndPersistRecordingOnScenePhaseChange()
                 }
             }
+        }
+        .accessibilityAction(.magicTap) {
+            handleRecordButtonTapped()
         }
     }
 
@@ -194,9 +221,7 @@ struct RecordView: View {
                 "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
             )
         }
-
-        let processor = AudioProcesser()  // DI 사용 시 주입 인스턴스로 교체
-        await processor.processAudio(for: recording, modelContext: modelContext)
+        await audioProcesser.enqueueProcess(for: recording, modelContext: modelContext)
     }
 
     private func handleRecordButtonTapped() {
@@ -258,8 +283,7 @@ struct RecordView: View {
                         )
                     }
 
-                    let processor = AudioProcesser()
-                    await processor.processAudio(
+                    await audioProcesser.enqueueProcess(
                         for: recording,
                         modelContext: modelContext
                     )
@@ -373,4 +397,3 @@ struct RecordView: View {
         throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
     }
 }
-
