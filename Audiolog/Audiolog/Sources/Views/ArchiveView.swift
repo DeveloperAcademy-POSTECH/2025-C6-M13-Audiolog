@@ -24,6 +24,8 @@ struct ArchiveView: View {
     @FocusState private var isEditingFocused: Bool
     @State private var pendingDelete: Recording?
     @State private var isShowingDeleteAlert: Bool = false
+    @State private var isShowingBulkDeleteAlert: Bool = false
+    @State private var bulkDeleteCount: Int = 0
     @State private var selection = Set<UUID>()
     @State private var isSelecting: Bool = false
 
@@ -202,6 +204,14 @@ struct ArchiveView: View {
             } message: {
                 Text("삭제를 하면 되돌릴 수 없어요.")
             }
+            .alert("\(bulkDeleteCount)개의 녹음을 삭제하시겠습니까?", isPresented: $isShowingBulkDeleteAlert) {
+                Button("삭제", role: .destructive) {
+                    deleteSelected()
+                }
+                Button("취소", role: .cancel) { }
+            } message: {
+                Text("삭제하시면 되돌릴 수 없어요.")
+            }
             .navigationTitle(navTitle)
             .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
             .environment(
@@ -237,7 +247,8 @@ struct ArchiveView: View {
                         Spacer()
 
                         Button {
-                            deleteSelected()
+                            bulkDeleteCount = selection.count
+                            isShowingBulkDeleteAlert = true
                         } label: {
                             Label("삭제", systemImage: "trash")
                                 .fontWeight(.semibold)
