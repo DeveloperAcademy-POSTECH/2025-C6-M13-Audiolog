@@ -18,7 +18,7 @@ struct ArchiveView: View {
     ]) private var recordings: [Recording]
 
     @Binding var isRecordCreated: Bool
-    
+
     @State private var editingId: UUID?
     @State private var tempTitle: String = ""
     @FocusState private var isEditingFocused: Bool
@@ -46,146 +46,156 @@ struct ArchiveView: View {
                     .blur(radius: 100)
                     .offset(x: -100, y: -320)
 
-                List(selection: $selection) {
-                    ForEach(recordings) { item in
-                        HStack {
+                VStack(spacing: 0) {
+                    List(selection: $selection) {
+                        ForEach(recordings) { item in
                             HStack {
-                                VStack(alignment: .leading, spacing: 5) {
-                                    if editingId == item.id && !isSelecting {
-                                        TextField("제목", text: $tempTitle)
-                                            .focused($isEditingFocused)
-                                            .submitLabel(.done)
-                                            .onSubmit {
-                                                commitEdit(for: item)
-                                            }
-                                            .onAppear {
-                                                isEditingFocused = true
-                                            }
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        if editingId == item.id && !isSelecting
+                                        {
+                                            TextField("제목", text: $tempTitle)
+                                                .focused($isEditingFocused)
+                                                .submitLabel(.done)
+                                                .onSubmit {
+                                                    commitEdit(for: item)
+                                                }
+                                                .onAppear {
+                                                    isEditingFocused = true
+                                                }
+                                                .lineLimit(1)
+                                        } else {
+                                            Text(
+                                                item.isTitleGenerated
+                                                    && !item.title.isEmpty
+                                                    ? item.title : "제목 생성중.."
+                                            )
+                                            .font(.callout)
+                                            .foregroundStyle(
+                                                item.isTitleGenerated
+                                                    ? .lbl1 : .lbl3
+                                            )
                                             .lineLimit(1)
-                                    } else {
+                                        }
+
                                         Text(
-                                            item.isTitleGenerated
-                                                && !item.title.isEmpty
-                                                ? item.title : "제목 생성중.."
-                                        )
-                                        .font(.callout)
-                                        .foregroundStyle(
-                                            item.isTitleGenerated
-                                                ? .lbl1 : .lbl3
+                                            "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) · \(item.formattedDuration)"
                                         )
                                         .lineLimit(1)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.lbl2)
+                                        .accessibilityLabel(
+                                            Text(
+                                                "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                            )
+                                        )
                                     }
-
-                                    Text(
-                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) · \(item.formattedDuration)"
-                                    )
-                                    .lineLimit(1)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.lbl2)
-                                    .accessibilityLabel(Text(
-                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
-                                    ))
+                                    Spacer()
                                 }
-                                Spacer()
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                guard editingId == nil, !isSelecting else {
-                                    return
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    guard editingId == nil, !isSelecting else {
+                                        return
+                                    }
+                                    audioPlayer.setPlaylist(recordings)
+                                    audioPlayer.load(item)
+                                    audioPlayer.play()
                                 }
-                                audioPlayer.setPlaylist(recordings)
-                                audioPlayer.load(item)
-                                audioPlayer.play()
-                            }
 
-                            Button {
-                                toggleFavorite(item)
-                            } label: {
-                                Image(
-                                    uiImage: UIImage(
-                                        named: item.isFavorite
-                                            ? "FavoriteOn" : "FavoriteOff"
-                                    )!
-                                )
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                            }
-                            .contentShape(Rectangle())
-                            .frame(width: 44, height: 44)
-                            .disabled(isSelecting || editingId != nil)
-                            .accessibilityHidden(true)
-                        }
-                        .listRowBackground(
-                            RoundedRectangle(cornerRadius: 15)
-                                .fill(.listBg)
-                        )
-                        .listRowSeparator(.hidden)
-                        .padding(5)
-                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            if !isSelecting && editingId == nil {
                                 Button {
                                     toggleFavorite(item)
                                 } label: {
-                                    VStack {
-                                        Image(
-                                            systemName: item.isFavorite
-                                                ? "star.slash" : "star.fill"
-                                        )
-                                        Text(item.isFavorite ? "즐겨찾기 해제" : "즐겨찾기")
-                                    }
+                                    Image(
+                                        uiImage: UIImage(
+                                            named: item.isFavorite
+                                                ? "FavoriteOn" : "FavoriteOff"
+                                        )!
+                                    )
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
                                 }
-                                .tint(.main)
+                                .contentShape(Rectangle())
+                                .frame(width: 44, height: 44)
+                                .disabled(isSelecting || editingId != nil)
+                                .accessibilityHidden(true)
                             }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            if !isSelecting && editingId == nil {
-                                Button {
-                                    pendingDelete = item
-                                    isShowingDeleteAlert = true
-                                } label: {
-                                    VStack {
-                                        Image(
-                                            systemName: "trash"
-                                        )
-                                        Text("삭제")
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(.listBg)
+                            )
+                            .listRowSeparator(.hidden)
+                            .padding(5)
+                            .swipeActions(
+                                edge: .leading,
+                                allowsFullSwipe: false
+                            ) {
+                                if !isSelecting && editingId == nil {
+                                    Button {
+                                        toggleFavorite(item)
+                                    } label: {
+                                        VStack {
+                                            Image(
+                                                systemName: item.isFavorite
+                                                    ? "star.slash" : "star.fill"
+                                            )
+                                            Text(
+                                                item.isFavorite
+                                                    ? "즐겨찾기 해제" : "즐겨찾기"
+                                            )
+                                        }
                                     }
+                                    .tint(.main)
                                 }
-                                .tint(.red1)
-
-                                Button {
-                                    editingId = item.id
-                                    tempTitle = item.title
-                                } label: {
-                                    VStack {
-                                        Image(
-                                            systemName: "pencil"
-                                        )
-
-                                        Text("수정")
-                                    }
-                                }
-                                .tint(.purple1)
                             }
+                            .swipeActions(
+                                edge: .trailing,
+                                allowsFullSwipe: false
+                            ) {
+                                if !isSelecting && editingId == nil {
+                                    Button {
+                                        pendingDelete = item
+                                        isShowingDeleteAlert = true
+                                    } label: {
+                                        VStack {
+                                            Image(
+                                                systemName: "trash"
+                                            )
+                                            Text("삭제")
+                                        }
+                                    }
+                                    .tint(.red1)
+
+                                    Button {
+                                        editingId = item.id
+                                        tempTitle = item.title
+                                    } label: {
+                                        VStack {
+                                            Image(
+                                                systemName: "pencil"
+                                            )
+
+                                            Text("수정")
+                                        }
+                                    }
+                                    .tint(.purple1)
+                                }
+                            }
+                            .tag(item.id)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityAddTraits(.isButton)
                         }
-                        .tag(item.id)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityAddTraits(.isButton)
                     }
-                }
-                .padding(.horizontal, 20)
-                .accessibilitySortPriority(3)
-            }
-            .overlay(alignment: .bottom) {
-                if !isSelecting {
-                    VStack {
-                        Spacer()
-                        MiniPlayerView()
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 10)
                     .padding(.horizontal, 20)
-                    .transition(.opacity)
+                    .accessibilitySortPriority(3)
+
+                    if !isSelecting {
+                        MiniPlayerView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.bottom, 10)
+                            .padding(.horizontal, 20)
+                            .transition(.opacity)
+                    }
                 }
             }
             .listStyle(.plain)
@@ -204,11 +214,14 @@ struct ArchiveView: View {
             } message: {
                 Text("삭제를 하면 되돌릴 수 없어요.")
             }
-            .alert("\(bulkDeleteCount)개의 녹음을 삭제하시겠습니까?", isPresented: $isShowingBulkDeleteAlert) {
+            .alert(
+                "\(bulkDeleteCount)개의 녹음을 삭제하시겠습니까?",
+                isPresented: $isShowingBulkDeleteAlert
+            ) {
                 Button("삭제", role: .destructive) {
                     deleteSelected()
                 }
-                Button("취소", role: .cancel) { }
+                Button("취소", role: .cancel) {}
             } message: {
                 Text("삭제하시면 되돌릴 수 없어요.")
             }
