@@ -57,8 +57,8 @@ struct RecordView: View {
                         paused: !audioRecorder.isRecording
                     )
                 ) { context in
-                    let startWaveFrameCount = 129
-                    let repeatWaveFrameCount = 59
+                    let startWaveFrameCount = 90
+                    let repeatWaveFrameCount = 90
                     let fps: Double = 24
 
                     let baseline = timelineStart ?? context.date
@@ -71,14 +71,14 @@ struct RecordView: View {
                         let frameCount = Int(floor(t * fps))
                         if frameCount >= startWaveFrameCount {
                             return String(
-                                format: "Record%02d",
+                                format: "Record%03d",
                                 (frameCount - startWaveFrameCount)
-                                    % repeatWaveFrameCount
+                                    % repeatWaveFrameCount + startWaveFrameCount
                             )
                         } else {
                             return String(
                                 format: "Record%03d",
-                                frameCount % startWaveFrameCount
+                                frameCount
                             )
                         }
                     }()
@@ -95,7 +95,7 @@ struct RecordView: View {
                             .accessibilityHidden(true)
                     }
                 }
-                .offset(y: -30)
+                .opacity(audioRecorder.isRecording ? 1 : 0.1)
 
                 VStack {
                     Title3(
@@ -231,7 +231,10 @@ struct RecordView: View {
                 "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
             )
         }
-        await audioProcesser.enqueueProcess(for: recording, modelContext: modelContext)
+        await audioProcesser.enqueueProcess(
+            for: recording,
+            modelContext: modelContext
+        )
     }
 
     private func handleRecordButtonTapped() {
