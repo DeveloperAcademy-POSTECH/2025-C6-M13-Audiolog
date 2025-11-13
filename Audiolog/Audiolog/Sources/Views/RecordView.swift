@@ -12,7 +12,7 @@ import SwiftUI
 
 struct RecordView: View {
     @State private var audioRecorder = AudioRecorder()
-    @State private var timelineStart: Date? = nil
+    @State private var timelineStart: Date?
 
     @Environment(\.scenePhase) var scenePhase
     @Environment(\.modelContext) private var modelContext
@@ -25,7 +25,7 @@ struct RecordView: View {
 
     @State private var showToast: Bool = false
     @Binding var isRecordCreated: Bool
-    
+
     @AccessibilityFocusState private var voFocused: Bool
 
     private var pulsingOpacity: Double {
@@ -49,7 +49,12 @@ struct RecordView: View {
                     .blur(radius: 60)
                     .offset(x: 0, y: 0)
 
-                TimelineView(.animation(minimumInterval: 1.0/24.0, paused: !audioRecorder.isRecording)) { context in
+                TimelineView(
+                    .animation(
+                        minimumInterval: 1.0 / 24.0,
+                        paused: !audioRecorder.isRecording
+                    )
+                ) { context in
                     let startWaveFrameCount = 129
                     let repeatWaveFrameCount = 59
                     let fps: Double = 24
@@ -58,12 +63,21 @@ struct RecordView: View {
                     let t = context.date.timeIntervalSince(baseline)
 
                     let frameName: String = {
-                        guard audioRecorder.isRecording else { return "Record000" }
+                        guard audioRecorder.isRecording else {
+                            return "Record000"
+                        }
                         let frameCount = Int(floor(t * fps))
                         if frameCount >= startWaveFrameCount {
-                            return String(format: "Record%02d", (frameCount - startWaveFrameCount) % repeatWaveFrameCount)
+                            return String(
+                                format: "Record%02d",
+                                (frameCount - startWaveFrameCount)
+                                    % repeatWaveFrameCount
+                            )
                         } else {
-                            return String(format: "Record%03d", frameCount % startWaveFrameCount)
+                            return String(
+                                format: "Record%03d",
+                                frameCount % startWaveFrameCount
+                            )
                         }
                     }()
 
@@ -139,8 +153,8 @@ struct RecordView: View {
                 audioRecorder.setupCaptureSession()
                 locationManager.requestLocation()
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        voFocused = true
-                    }
+                    voFocused = true
+                }
             }
             .onDisappear {
                 if audioRecorder.isRecording {
