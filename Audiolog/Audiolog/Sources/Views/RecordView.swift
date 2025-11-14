@@ -182,6 +182,7 @@ struct RecordView: View {
                         await stopAndPersistRecordingOnScenePhaseChange()
                     }
                 }
+                UIApplication.shared.isIdleTimerDisabled = false
             }
             .onChange(of: scenePhase) {
                 guard audioRecorder.isRecording,
@@ -314,6 +315,7 @@ struct RecordView: View {
         } else {
             logger.log("[RecordView] Starting recording...")
             audioRecorder.startRecording()
+            UIApplication.shared.isIdleTimerDisabled = true
             logger.log(
                 "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
             )
