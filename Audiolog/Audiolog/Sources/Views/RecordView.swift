@@ -11,6 +11,7 @@ import SwiftData
 import SwiftUI
 
 struct RecordView: View {
+    @Environment(AudioPlayer.self) private var audioPlayer
     let audioProcesser: AudioProcesser
 
     @State private var audioRecorder = AudioRecorder()
@@ -314,6 +315,9 @@ struct RecordView: View {
             }
         } else {
             logger.log("[RecordView] Starting recording...")
+            if audioPlayer.isPlaying {
+                audioPlayer.pause()
+            }
             timelineStart = Date()
             audioRecorder.startRecording()
             UIApplication.shared.isIdleTimerDisabled = true
