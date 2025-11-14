@@ -436,7 +436,7 @@ class AudioPlayer: NSObject {
     private func setupAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setCategory(.playback, mode: .moviePlayback, options: [.allowBluetoothHFP])
             try session.setActive(true)
             logger.log(
                 "AVAudioSession configured: category=\(session.category.rawValue), outputVolume=\(session.outputVolume)"
