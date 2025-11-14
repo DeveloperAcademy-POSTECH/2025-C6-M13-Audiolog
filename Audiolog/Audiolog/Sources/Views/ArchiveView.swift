@@ -7,7 +7,6 @@
 
 import SwiftData
 import SwiftUI
-import UIKit
 
 struct ArchiveView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
@@ -198,6 +197,19 @@ struct ArchiveView: View {
                                             }
                                         }
                                         .tint(.purple1)
+
+                                        if let url = fileURL(for: item) {
+                                            ShareLink(item: url) {
+                                                VStack {
+                                                    Image(
+                                                        systemName:
+                                                            "square.and.arrow.up"
+                                                    )
+                                                    Text("공유")
+                                                }
+                                            }
+                                            .tint(.accent)
+                                        }
                                     }
                                 }
                                 .tag(item.id)
@@ -268,11 +280,10 @@ struct ArchiveView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {
                     if isSelecting {
-                        Button {
-                            selectAll()
-                        } label: {
-                            Text("전체 선택")
+                        ShareLink(items: selectedFileURLs) {
+                            Image(systemName: "square.and.arrow.up")
                         }
+                        .disabled(selectedFileURLs.isEmpty)
 
                         Spacer()
 
@@ -295,10 +306,24 @@ struct ArchiveView: View {
         }
     }
 
+    private var selectedFileURLs: [URL] {
+        recordings
+            .filter { selection.contains($0.id) }
+            .compactMap { fileURL(for: $0) }
+    }
+
+    private func fileURL(for recording: Recording) -> URL? {
+        let fileName = recording.fileName
+        let documentURL = getDocumentURL()
+
+        let fileURL = documentURL.appendingPathComponent(fileName)
+
+        return fileURL
+    }
+
     private func commitEdit(for item: Recording) {
         let newTitle = tempTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newTitle.isEmpty else {
-            // 빈 제목이면 편집 종료만
             editingId = nil
             return
         }
