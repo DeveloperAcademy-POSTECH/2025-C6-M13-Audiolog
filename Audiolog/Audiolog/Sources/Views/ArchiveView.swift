@@ -189,7 +189,7 @@ struct ArchiveView: View {
                         }
                     }
 
-                    if !isSelecting {
+                    if !isSelecting && !isEditingFocused {
                         MiniPlayerView()
                             .frame(maxWidth: .infinity)
                             .padding(.bottom, 10)
