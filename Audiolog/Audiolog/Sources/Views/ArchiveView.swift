@@ -368,19 +368,4 @@ struct ArchiveView: View {
         delete(targets)
         selection.removeAll()
     }
-
-    private func selectAll() {
-        // 비어 있으면 할 일 없음
-        guard !recordings.isEmpty else {
-            selection.removeAll()
-            return
-        }
-
-        // 전부 선택되어 있으면 해제, 아니면 모두 선택
-        if selection.count == recordings.count {
-            selection.removeAll()
-        } else {
-            selection = Set(recordings.map { $0.id })
-        }
-    }
 }
