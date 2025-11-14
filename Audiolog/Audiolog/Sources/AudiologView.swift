@@ -11,7 +11,7 @@ import SwiftUI
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
     private let audioProcesser = AudioProcesser()
-    
+
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: [
