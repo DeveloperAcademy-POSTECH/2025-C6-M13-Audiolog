@@ -123,11 +123,9 @@ struct ArchiveView: View {
                             .listRowBackground(
                                 RoundedRectangle(cornerRadius: 15)
                                     .fill(.listBg)
-                                    .padding(.horizontal, 20)
                             )
                             .listRowSeparator(.hidden)
                             .padding(.vertical, 5)
-                            .padding(.horizontal, 20)
                             .swipeActions(
                                 edge: .leading,
                                 allowsFullSwipe: false
@@ -198,7 +196,6 @@ struct ArchiveView: View {
                     }
                 }
             }
-            .listStyle(.plain)
             .listRowSpacing(10)
             .scrollContentBackground(.hidden)
             .alert("현재 녹음을 삭제하겠습니까?", isPresented: $isShowingDeleteAlert) {
