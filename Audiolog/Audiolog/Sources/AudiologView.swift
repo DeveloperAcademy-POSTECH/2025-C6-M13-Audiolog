@@ -44,7 +44,7 @@ struct AudiologView: View {
 
             Tab(
                 "추천 로그",
-                systemImage: "rectangle.split.2x2.fill",
+                systemImage: "rectangle.grid.2x2.fill",
                 value: "추천 로그"
             ) {
                 RecapView()
