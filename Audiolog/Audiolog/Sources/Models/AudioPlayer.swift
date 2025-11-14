@@ -6,6 +6,7 @@
 //
 
 import AVFoundation
+import MediaPlayer
 import SwiftUI
 
 // swiftlint:disable:next type_body_length
@@ -37,6 +38,7 @@ class AudioPlayer: NSObject {
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
     private let timeEffect = AVAudioUnitTimePitch()
+    private var isTapInstalled = false
     private var isEngineConfigured = false
 
     private var displayLink: CADisplayLink?
@@ -65,6 +67,7 @@ class AudioPlayer: NSObject {
         super.init()
         setupAudioSession()
         setupDisplayLink()
+        remoteCommandCenterSetting()
     }
 
     func play() {
@@ -139,7 +142,7 @@ class AudioPlayer: NSObject {
         if let index = currentIndex {
             let nextIndex = index + 1
             guard playlist.indices.contains(nextIndex) else { return }
-            playItem(at: nextIndex)
+            playItem(at: nextIndex, playNow: false)
         } else {
             playFromStart()
         }
@@ -151,7 +154,7 @@ class AudioPlayer: NSObject {
         if let index = currentIndex {
             let previousIndex = index - 1
             guard playlist.indices.contains(previousIndex) else { return }
-            playItem(at: previousIndex)
+            playItem(at: previousIndex, playNow: false)
         } else {
             playFromStart()
         }
@@ -203,13 +206,17 @@ class AudioPlayer: NSObject {
         }
     }
 
-    private func playItem(at index: Int) {
+    private func playItem(at index: Int, playNow: Bool = true) {
         guard playlist.indices.contains(index) else { return }
 
         let item = playlist[index]
         currentIndex = index
         load(item)
-        play()
+        updateNowPlayingInfo(current: item)
+        
+        if playNow || isPlaying {
+            play()
+        }
     }
 
     private func configureEngine(with format: AVAudioFormat) {
@@ -364,6 +371,12 @@ class AudioPlayer: NSObject {
 
     private func connectVolumeTap() {
         logger.log("connectVolumeTap() called")
+
+        guard !isTapInstalled else {
+            logger.log("connectVolumeTap() skipped: tap already installed")
+            return
+        }
+
         let format = engine.mainMixerNode.outputFormat(forBus: 0)
         logger.log(
             "mainMixerNode outputFormat: sampleRate = \(format.sampleRate), channels = \(format.channelCount)"
@@ -376,11 +389,20 @@ class AudioPlayer: NSObject {
         ) { _, _ in
             // TODO: haptic추가 이쯤에서 하려나..
         }
+
+        isTapInstalled = true
     }
 
     private func disconnectVolumeTap() {
         logger.log("disconnectVolumeTap() called")
+
+        guard isTapInstalled else {
+            logger.log("disconnectVolumeTap() skipped: no tap installed")
+            return
+        }
+
         engine.mainMixerNode.removeTap(onBus: 0)
+        isTapInstalled = false
     }
 
     // MARK: Display updates
@@ -416,7 +438,9 @@ class AudioPlayer: NSObject {
             if let index = currentIndex {
                 let nextIndex = index + 1
                 if playlist.indices.contains(nextIndex) {
-                    logger.log("▶️ Moving to next item in playlist at index \(nextIndex)")
+                    logger.log(
+                        "Moving to next item in playlist at index \(nextIndex)"
+                    )
                     playItem(at: nextIndex)
                     return
                 }
@@ -431,12 +455,20 @@ class AudioPlayer: NSObject {
 
         let time = Double(currentPosition) / audioSampleRate
         currentPlaybackTime = time
+
+        if let current {
+            updateNowPlayingInfo(current: current)
+        }
     }
 
     private func setupAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.playback, mode: .moviePlayback, options: [.allowBluetoothHFP])
+            try session.setCategory(
+                .playback,
+                mode: .moviePlayback,
+                options: [.allowBluetoothHFP]
+            )
             try session.setActive(true)
             logger.log(
                 "AVAudioSession configured: category=\(session.category.rawValue), outputVolume=\(session.outputVolume)"
@@ -457,6 +489,63 @@ class AudioPlayer: NSObject {
         currentPlaybackTime = 0
 
         needsFileScheduled = true
+    }
+
+    private func updateNowPlayingInfo(current: Recording) {
+        var nowPlayingInfo = [String: Any]()
+        nowPlayingInfo[MPMediaItemPropertyTitle] = current.title
+        //        if let albumCoverPage = UIImage(named: String(substring) + "_icon") {
+        //            nowPlayingInfo[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: albumCoverPage.size, requestHandler: { size in
+        //                return albumCoverPage
+        //            })
+        //        }
+        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = audioLengthSeconds
+        nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] =
+            currentPlaybackTime
+
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+    }
+
+    private func remoteCommandCenterSetting() {
+        UIApplication.shared.beginReceivingRemoteControlEvents()
+        let center = MPRemoteCommandCenter.shared()
+
+        center.playCommand.addTarget { (_) -> MPRemoteCommandHandlerStatus in
+            self.play()
+            return MPRemoteCommandHandlerStatus.success
+        }
+
+        center.pauseCommand.addTarget { (_) -> MPRemoteCommandHandlerStatus in
+            self.pause()
+            return MPRemoteCommandHandlerStatus.success
+        }
+
+        center.nextTrackCommand.addTarget {
+            (_) -> MPRemoteCommandHandlerStatus in
+            self.playNextInPlaylist()
+            return MPRemoteCommandHandlerStatus.success
+        }
+
+        center.previousTrackCommand.addTarget {
+            (_) -> MPRemoteCommandHandlerStatus in
+            self.playPreviousInPlaylist()
+            return MPRemoteCommandHandlerStatus.success
+        }
+
+        let changePositionCommand = center.changePlaybackPositionCommand
+        changePositionCommand.isEnabled = true
+        changePositionCommand.addTarget {
+            event -> MPRemoteCommandHandlerStatus in
+            guard
+                let positionEvent = event
+                    as? MPChangePlaybackPositionCommandEvent
+            else {
+                return .commandFailed
+            }
+
+            self.seek(to: positionEvent.positionTime)
+            return .success
+        }
     }
 }
 
