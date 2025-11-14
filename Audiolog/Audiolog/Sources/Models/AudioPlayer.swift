@@ -19,7 +19,7 @@ class AudioPlayer: NSObject {
 
     var isPlaying = false
     var isPlayerReady = false
-    var playbackRateIndex: Int = 1 {
+    var playbackRateIndex: Int = 0 {
         didSet {
             updateForRateSelection()
         }
@@ -29,10 +29,9 @@ class AudioPlayer: NSObject {
     var audioLengthSeconds: Double = 0
 
     let allPlaybackRates: [PlaybackValue] = [
-        .init(value: 0.5, label: "0.5x"),
-        .init(value: 1, label: "1x"),
-        .init(value: 1.25, label: "1.25x"),
-        .init(value: 2, label: "2x"),
+        .init(value: 1, label: "1.0x"),
+        .init(value: 1.5, label: "1.5x"),
+        .init(value: 2, label: "2.0x"),
     ]
 
     private let engine = AVAudioEngine()
@@ -213,7 +212,7 @@ class AudioPlayer: NSObject {
         currentIndex = index
         load(item)
         updateNowPlayingInfo(current: item)
-        
+
         if playNow || isPlaying {
             play()
         }
@@ -424,9 +423,9 @@ class AudioPlayer: NSObject {
         currentPosition = min(currentPosition, audioLengthSamples)
 
         if oldPosition != currentPosition {
-            logger.log(
-                "updateDisplay() currentPosition = \(currentPosition) / \(audioLengthSamples), seekFrame = \(seekFrame)"
-            )
+            //            logger.log(
+            //                "updateDisplay() currentPosition = \(currentPosition) / \(audioLengthSamples), seekFrame = \(seekFrame)"
+            //            )
         }
 
         if currentPosition >= audioLengthSamples {

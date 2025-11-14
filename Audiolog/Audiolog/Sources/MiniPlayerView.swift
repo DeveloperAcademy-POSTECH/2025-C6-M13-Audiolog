@@ -28,6 +28,18 @@ struct MiniPlayerView: View {
                         }
                     }
                     Spacer()
+
+                    Button {
+                        let nextIndex = (audioPlayer.playbackRateIndex + 1) % audioPlayer.allPlaybackRates.count
+                        audioPlayer.playbackRateIndex = nextIndex
+                    } label: {
+                        Text(audioPlayer.allPlaybackRates[audioPlayer.playbackRateIndex].label)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.lbl1)
+                            .monospacedDigit()
+                    }
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                 }
                 .padding(.top, 20)
                 .padding(.horizontal, 20)
