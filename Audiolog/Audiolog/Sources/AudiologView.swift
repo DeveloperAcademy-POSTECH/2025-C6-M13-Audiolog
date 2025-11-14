@@ -30,7 +30,10 @@ struct AudiologView: View {
                 systemImage: "microphone",
                 value: "녹음"
             ) {
-                RecordView(audioProcesser: audioProcesser, isRecordCreated: $isRecordCreated)
+                RecordView(
+                    audioProcesser: audioProcesser,
+                    isRecordCreated: $isRecordCreated
+                )
             }
 
             Tab(
@@ -94,7 +97,10 @@ struct AudiologView: View {
                 continue
             }
             let processor = AudioProcesser()
-            await processor.enqueueProcess(for: target, modelContext: modelContext)
+            await processor.enqueueProcess(
+                for: target,
+                modelContext: modelContext
+            )
         }
         logger.log("[AudiologView] Reprocess done.")
     }
