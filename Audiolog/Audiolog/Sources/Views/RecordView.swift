@@ -314,6 +314,7 @@ struct RecordView: View {
             }
         } else {
             logger.log("[RecordView] Starting recording...")
+            timelineStart = Date()
             audioRecorder.startRecording()
             UIApplication.shared.isIdleTimerDisabled = true
             logger.log(
