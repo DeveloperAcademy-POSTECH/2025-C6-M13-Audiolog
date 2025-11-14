@@ -123,9 +123,11 @@ struct ArchiveView: View {
                             .listRowBackground(
                                 RoundedRectangle(cornerRadius: 15)
                                     .fill(.listBg)
+                                    .padding(.horizontal, 20)
                             )
                             .listRowSeparator(.hidden)
-                            .padding(5)
+                            .padding(.vertical, 5)
+                            .padding(.horizontal, 20)
                             .swipeActions(
                                 edge: .leading,
                                 allowsFullSwipe: false
@@ -186,8 +188,6 @@ struct ArchiveView: View {
                             .accessibilityAddTraits(.isButton)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .accessibilitySortPriority(3)
 
                     if !isSelecting {
                         MiniPlayerView()
