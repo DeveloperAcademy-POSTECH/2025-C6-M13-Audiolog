@@ -24,7 +24,7 @@ enum TitleGuide {
 
         let maxRatio = ctxObj.ratios.values.max() ?? 0
         if maxRatio < 0.20 {
-            return "분석 실패, 상황을 수정해주세요"
+            return recording.location
         }
 
         let prompt = buildUserPrompt(
@@ -77,7 +77,7 @@ enum TitleGuide {
             }
         }
 
-        guard !candidates.isEmpty else { return nil }
+        guard !candidates.isEmpty else { return recording.location }
 
         let scored =
             candidates
