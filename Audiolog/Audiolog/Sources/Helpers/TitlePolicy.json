@@ -1,193 +1,46 @@
 {
-    "policyVersion": "2025-11-10T01:50:00Z",
-    "lang": "ko-KR",
-    "guardrails": [
-        "반드시 한국어 한 문장으로만 출력",
-        "따옴표/이모지/해시태그/접두 라벨 금지",
-        "입력에 없는 사실 추정 금지",
-        "정시/분 표기 금지(계절·대략적 시간대만 유추)"
-    ],
-    "priorityRules": {
-        "usePrimaryTagAsMainConcept": true,
-        "useSecondaryTagAsHint": true,
-        "useHintTagsAsMoodOnly": true,
-        "banNewContextFromHintTags": true
+  "fewShots": [
+    {
+      "input": {
+        "주태그": "waves",
+        "부태그": "speech",
+        "위치": "부산 해운대",
+        "전사": "사진 한 장 더 찍자"
+      },
+      "output": "파도소리 속 대화"
     },
-    "walkingConstraints": {
-        "requireWalkingCuesForWalkWords": true,
-        "walkWords": [
-            "산책",
-            "걷",
-            "발걸음",
-            "조깅"
-        ]
+    {
+      "input": {
+        "주태그": "traffic",
+        "부태그": "speech",
+        "전사": "부산까지 4시간쯤?"
+      },
+      "output": "이동 중 대화"
     },
-    "speechBias": {
-        "enableWhenPrimaryTagEquals": [
-            "speech"
-        ]
+    {
+      "input": {
+        "주태그": "speech",
+        "위치": "서울 강남 카페",
+        "전사": "내일 3시에 가능해?"
+      },
+      "output": "일정 정하는 대화"
     },
-    "specialCases": [
-        {
-            "when": "interview",
-            "title": "인터뷰 녹음",
-            "titleWithName": "{name}과 인터뷰"
-        },
-        {
-            "when": "meeting",
-            "contains": [
-                "회의",
-                "스프린트",
-                "일정",
-                "안건",
-                "아젠다",
-                "리뷰",
-                "레트로"
-            ],
-            "title": "팀 회의",
-            "titleIfContains": {
-                "스프린트": "스프린트 목표 회의"
-            }
-        },
-        {
-            "when": "broadcast",
-            "patterns": [
-                "이번 역은",
-                "환승",
-                "내려 주시기"
-            ],
-            "titlesByTransport": {
-                "지하철": "지하철 안내방송",
-                "버스": "버스 안내방송",
-                "기차": "기차 안내방송"
-            },
-            "fallback": "대중교통 안내방송"
-        },
-        {
-            "when": "sermon",
-            "keywords": [
-                "설교",
-                "본문",
-                "아멘",
-                "예배"
-            ],
-            "title": "설교",
-            "titleWithVerse": "{verse} 설교"
-        },
-        {
-            "when": "waves",
-            "titleTalk": "파도소리 속 대화",
-            "titleAmbient": "파도소리"
-        },
-        {
-            "when": "rain",
-            "titleTopic": "빗소리 속 {topic}",
-            "titleMonologue": "빗소리 속 혼잣말"
-        },
-        {
-            "when": "birds",
-            "title": "예쁜 새소리"
-        },
-        {
-            "when": "mechanical",
-            "title": "기계소리"
-        },
-        {
-            "when": "event",
-            "title": "행사 속 환호",
-            "titleWithName": "{event} 속 환호"
-        },
-        {
-            "when": "sports",
-            "title": "경기장 골 함성"
-        },
-        {
-            "when": "siren",
-            "mapByDialog": {
-                "소방": "소방 사이렌",
-                "fire": "소방 사이렌",
-                "구급": "구급차 사이렌",
-                "ambulance": "구급차 사이렌",
-                "대피": "재난 대피 경보",
-                "재난": "재난 대피 경보"
-            },
-            "fallback": "경보음"
-        },
-        {
-            "when": "cafeTalk",
-            "scheduleKeywords": [
-                "예약",
-                "몇 시",
-                "오전",
-                "오후",
-                "가능해",
-                "일정",
-                "캘린더",
-                "회의실"
-            ],
-            "title": "카페의 대화",
-            "titleSchedule": "일정 정하는 대화",
-            "titleScheduleWithName": "{name}과 일정 계획"
-        },
-        {
-            "when": "carTalk",
-            "title": "이동 중 대화",
-            "titleWithName": "{name}과 이동 중 대화"
-        },
-        {
-            "when": "musicDominant",
-            "titleMeta": "{bgmTitle}, {bgmArtist}",
-            "titleTitleOnly": "{bgmTitle}",
-            "fallback": "음악 속의 대화"
-        },
-        {
-            "when": "genericSpeech",
-            "title": "대화",
-            "titleWithName": "{name}과 대화"
-        }
-    ],
-    "fewShots": [
-        {
-            "input": {
-                "주태그": "waves",
-                "부태그": "speech",
-                "위치": "부산 해운대",
-                "전사": "사진 한 장 더 찍자"
-            },
-            "output": "파도소리 속 대화"
-        },
-        {
-            "input": {
-                "주태그": "traffic",
-                "부태그": "speech",
-                "전사": "부산까지 4시간쯤?"
-            },
-            "output": "이동 중 대화"
-        },
-        {
-            "input": {
-                "주태그": "speech",
-                "위치": "서울 강남 카페",
-                "전사": "내일 3시에 가능해?"
-            },
-            "output": "일정 정하는 대화"
-        },
-        {
-            "input": {
-                "주태그": "rain",
-                "부태그": "speech",
-                "전사": "오늘은 일찍 자야지"
-            },
-            "output": "빗소리 속 혼잣말"
-        },
-        {
-            "input": {
-                "주태그": "music",
-                "부태그": "singing",
-                "배경음악제목": "로파이 비트",
-                "배경음악아티스트": "재생목록"
-            },
-            "output": "로파이 비트, 재생목록"
-        }
-    ]
+    {
+      "input": {
+        "주태그": "rain",
+        "부태그": "speech",
+        "전사": "오늘은 일찍 자야지"
+      },
+      "output": "빗소리 속 혼잣말"
+    },
+    {
+      "input": {
+        "주태그": "music",
+        "부태그": "singing",
+        "배경음악제목": "로파이 비트",
+        "배경음악아티스트": "재생목록"
+      },
+      "output": "로파이 비트, 재생목록"
+    }
+  ]
 }
