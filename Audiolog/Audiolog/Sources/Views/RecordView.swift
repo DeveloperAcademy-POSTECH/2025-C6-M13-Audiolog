@@ -29,6 +29,7 @@ struct RecordView: View {
     @State private var showToast: Bool = false
     @State private var isBusy: Bool = false
     @Binding var isRecordCreated: Bool
+    @Binding var startFromShortcut: Bool
 
     @AccessibilityFocusState private var voFocused: Bool
 
@@ -196,6 +197,15 @@ struct RecordView: View {
         }
         .accessibilityAction(.magicTap) {
             handleRecordButtonTapped()
+        }
+        .task(id: startFromShortcut) {
+            guard startFromShortcut else { return }
+
+            if !audioRecorder.isRecording {
+                handleRecordButtonTapped()
+            }
+
+            startFromShortcut = false
         }
     }
 

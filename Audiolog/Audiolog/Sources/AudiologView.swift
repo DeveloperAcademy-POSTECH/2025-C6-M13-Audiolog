@@ -7,6 +7,7 @@
 
 import SwiftData
 import SwiftUI
+import WidgetKit
 
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
@@ -23,6 +24,14 @@ struct AudiologView: View {
     @State private var isReprocessingPending = false
     @State private var isRecordCreated: Bool = false
 
+    @State private var shortcutBridge = ShortcutBridge.shared
+    @State private var startRecordingFromShortcut: Bool = false
+    @State private var searchQueryFromShortcut: String = ""
+
+    private var processedCount: Int {
+        recordings.filter { $0.isTitleGenerated }.count
+    }
+
     var body: some View {
         TabView(selection: $currentTab) {
             Tab(
@@ -32,7 +41,8 @@ struct AudiologView: View {
             ) {
                 RecordView(
                     audioProcesser: audioProcesser,
-                    isRecordCreated: $isRecordCreated
+                    isRecordCreated: $isRecordCreated,
+                    startFromShortcut: $startRecordingFromShortcut
                 )
             }
 
@@ -41,7 +51,10 @@ struct AudiologView: View {
                 systemImage: "play.square.stack.fill",
                 value: "전체 로그"
             ) {
-                ArchiveView(isRecordCreated: $isRecordCreated)
+                ArchiveView(
+                    isRecordCreated: $isRecordCreated,
+                    isSelecting: $isSelecting
+                )
             }
             .badge(isRecordCreated ? Text("N") : nil)
 
@@ -59,7 +72,9 @@ struct AudiologView: View {
                 value: "검색",
                 role: .search
             ) {
-                SearchView()
+                SearchView(
+                    externalQuery: $searchQueryFromShortcut
+                )
             }
         }
         .environment(audioPlayer)
@@ -67,6 +82,15 @@ struct AudiologView: View {
             let emptyThumb = UIImage()
             UISlider.appearance().setThumbImage(emptyThumb, for: .normal)
             await reprocessPendingTitlesIfNeeded()
+        }
+        .onChange(of: shortcutBridge.action) { _, newValue in
+            handleShortcutAction(newValue)
+        }
+        .onChange(of: processedCount) { _ in
+            updateRecapWidgetSnapshot()
+        }
+        .onAppear {
+            updateRecapWidgetSnapshot()
         }
     }
 
@@ -108,4 +132,76 @@ struct AudiologView: View {
     private func pendingRecordings() -> [Recording] {
         recordings.filter { !$0.isTitleGenerated || $0.title.isEmpty }
     }
+
+    private func handleShortcutAction(_ action: ShortcutBridge.Action) {
+        switch action {
+        case .none:
+            break
+
+        case .startRecording:
+            currentTab = "녹음"
+            startRecordingFromShortcut = true
+
+        case .searchAndPlay(let query):
+            currentTab = "검색"
+            searchQueryFromShortcut = query
+
+        case .playCategory(let tag):
+            currentTab = "추천 로그"
+            playCategory(tag)
+        }
+
+        shortcutBridge.action = .none
+    }
+
+    private func updateRecapWidgetSnapshot() {
+        let favoriteCount = recordings.filter { $0.isFavorite }.count
+
+        var tagToRecordingIDs: [String: Set<ObjectIdentifier>] = [:]
+        for recording in recordings {
+            let uniqueTags = Set(recording.tags ?? [])
+            let id = ObjectIdentifier(recording as AnyObject)
+            for tag in uniqueTags {
+                tagToRecordingIDs[tag, default: []].insert(id)
+            }
+        }
+
+        var dict: [String: Int] = [:]
+
+        if favoriteCount > 0 {
+            dict["즐겨찾기"] = favoriteCount
+        }
+
+        for (tag, ids) in tagToRecordingIDs where ids.count >= 3 {
+            dict[tag] = ids.count
+        }
+
+        let defaults = UserDefaults(suiteName: "group.seancho.audiolog")
+        defaults?.set(dict, forKey: "recap_items_dict")
+
+        WidgetCenter.shared.reloadTimelines(ofKind: "StartRecordingWidget")
+
+        logger.log("[AudiologView] Updated recap widget snapshot. dict=\(dict)")
+    }
+
+    private func playCategory(_ tag: String) {
+        let filtered = recordings.filter { recording in
+            if tag == "즐겨찾기" {
+                return recording.isFavorite
+            }
+            return (recording.tags ?? []).contains(tag)
+        }
+
+        guard !filtered.isEmpty else {
+            logger.log("[AudiologView] playCategory(\(tag)) – empty")
+            return
+        }
+
+        audioPlayer.setPlaylist(filtered)
+        audioPlayer.load(filtered[0])
+        audioPlayer.play()
+
+        logger.log("[AudiologView] playCategory(\(tag)) – started")
+    }
+
 }
