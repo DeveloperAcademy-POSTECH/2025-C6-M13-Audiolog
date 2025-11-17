@@ -106,26 +106,37 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
                 }
                 return
             }
-
             do {
                 if let json = try JSONSerialization.jsonObject(with: data)
                     as? [String: Any],
                     let documents = json["documents"] as? [[String: Any]]
                 {
-                    // road_address.building_name 사용
-                    if let roadAddress = documents.first?["road_address"]
+                    if let address = documents.first?["address"]
                         as? [String: Any]
                     {
-                        let roadAddr =
-                            roadAddress["address_name"] as? String ?? ""
-                        let buildingName =
-                            roadAddress["building_name"] as? String ?? ""
+                        let region2 = address["region_2depth_name"] as? String ?? ""
+                        let city: String
 
-                        let fullAddress =
-                            buildingName.isEmpty
-                            ? roadAddr : "\(roadAddr) \(buildingName)"
-                        completion(fullAddress)
-                        return
+                        if region2.contains(" ") {
+                            city = String(region2.split(separator: " ").first!)
+                        } else {
+                            city = region2
+                        }
+
+                        if let roadAddress = documents.first?["road_address"]
+                            as? [String: Any]
+                        {
+                            let roadAddr =
+                                roadAddress["address_name"] as? String ?? ""
+                            let buildingName =
+                                roadAddress["building_name"] as? String ?? ""
+
+                            let fullAddress =
+                                buildingName.isEmpty
+                                ? roadAddr : "\(city) \(buildingName)"
+                            completion(fullAddress)
+                            return
+                        }
                     }
                 }
                 self.fetchKeywordSearch(
