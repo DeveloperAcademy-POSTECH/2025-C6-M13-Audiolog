@@ -120,11 +120,47 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
     }
 
     func stopRecording() async {
-        sessionQueue.async { [self] in
-            self.isRecordForCallBacks = false
-            DispatchQueue.main.async {
-                self.isRecording = false
-                self.firstBufferPTS = nil
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            sessionQueue.async { [self] in
+                self.isRecordForCallBacks = false
+
+                guard let writer = self.assetWriter else {
+                    DispatchQueue.main.async {
+                        self.isRecording = false
+                        self.firstBufferPTS = nil
+                    }
+                    cont.resume()
+                    return
+                }
+
+                self.appendSpatialAudioMetadataSample()
+
+                self.assetWriterSpatialAudioInput?.markAsFinished()
+                self.assetWriterStereoAudioInput?.markAsFinished()
+                self.assetWriterMetadataInput?.markAsFinished()
+
+                writer.finishWriting { [weak self] in
+                    guard let self else {
+                        cont.resume()
+                        return
+                    }
+
+                    DispatchQueue.main.async {
+                        self.isRecording = false
+                        self.firstBufferPTS = nil
+                    }
+
+                    if writer.status != .completed {
+                        print("finishWriting failed:", writer.error ?? "unknown error")
+                    }
+
+                    self.assetWriter = nil
+                    self.assetWriterSpatialAudioInput = nil
+                    self.assetWriterStereoAudioInput = nil
+                    self.assetWriterMetadataInput = nil
+
+                    cont.resume()
+                }
             }
         }
     }
@@ -141,11 +177,6 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
         from connection: AVCaptureConnection
     ) {
         if !isRecordForCallBacks {
-            if self.assetWriter != nil {
-                self.appendSpatialAudioMetadataSample()
-                self.assetWriter?.finishWriting(completionHandler: {})
-                self.assetWriter = nil
-            }
             return
         }
 
