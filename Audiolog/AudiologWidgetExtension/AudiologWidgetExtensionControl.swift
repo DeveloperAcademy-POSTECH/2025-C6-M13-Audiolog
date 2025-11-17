@@ -12,7 +12,7 @@ import WidgetKit
 struct AudiologWidgetExtensionControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(
-            kind: "SeanCho.Audiolog.AudiologWidgetExtension.251117",
+            kind: "SeanCho.Audiolog.AudiologWidgetExtension251117",
             provider: Provider()
         ) { value in
             ControlWidgetToggle(
