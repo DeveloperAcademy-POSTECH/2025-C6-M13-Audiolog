@@ -19,7 +19,7 @@ struct MicButtonLabel: View {
         Image(systemName: isRecording ? "stop.fill" : "microphone.fill")
             .font(.system(size: 44))
             .tint(.white.opacity(0.9))
-            .frame(width: 88, height: 88)
+            .frame(width: 96, height: 96)
             .background(
                 ZStack {
                     Circle().fill(.main.opacity(0.5))

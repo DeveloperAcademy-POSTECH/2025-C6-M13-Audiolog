@@ -7,7 +7,6 @@
 
 import SwiftData
 import SwiftUI
-import UIKit
 
 struct ArchiveView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
@@ -30,11 +29,7 @@ struct ArchiveView: View {
     @State private var isSelecting: Bool = false
 
     private var navTitle: String {
-        if isSelecting {
-            return selection.isEmpty ? "전체 로그 항목" : "\(selection.count)개 선택됨"
-        } else {
-            return "녹음 목록"
-        }
+        return selection.isEmpty ? "전체 로그" : "\(selection.count)개 선택됨"
     }
     var body: some View {
         NavigationStack {
@@ -47,14 +42,33 @@ struct ArchiveView: View {
                     .offset(x: -100, y: -320)
 
                 VStack(spacing: 0) {
-                    List(selection: $selection) {
-                        ForEach(recordings) { item in
-                            HStack {
+                    if recordings.isEmpty {
+                        Spacer()
+                        VStack(spacing: 10) {
+                            Text("아직 저장된 로그가 없어요")
+                                .font(.title3)
+                                .foregroundStyle(.lbl2)
+                            Text("녹음 탭에서 새로운 로그를 만들어 보세요")
+                                .font(.footnote)
+                                .foregroundStyle(.lbl3)
+                            Spacer()
+                                .frame(height: 20)
+                        }
+                        Spacer()
+                    } else {
+                        List(selection: $selection) {
+                            ForEach(recordings) { item in
                                 HStack {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        if editingId == item.id && !isSelecting
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 5)
                                         {
-                                            TextField("제목", text: $tempTitle)
+                                            if editingId == item.id
+                                                && !isSelecting
+                                            {
+                                                TextField(
+                                                    "제목",
+                                                    text: $tempTitle
+                                                )
                                                 .focused($isEditingFocused)
                                                 .submitLabel(.done)
                                                 .onSubmit {
@@ -64,132 +78,148 @@ struct ArchiveView: View {
                                                     isEditingFocused = true
                                                 }
                                                 .lineLimit(1)
-                                        } else {
+                                            } else {
+                                                Text(
+                                                    item.isTitleGenerated
+                                                        && !item.title.isEmpty
+                                                        ? item.title
+                                                        : "제목 생성중.."
+                                                )
+                                                .font(.callout)
+                                                .foregroundStyle(
+                                                    item.isTitleGenerated
+                                                        ? .lbl1 : .lbl3
+                                                )
+                                                .lineLimit(1)
+                                            }
+
                                             Text(
-                                                item.isTitleGenerated
-                                                    && !item.title.isEmpty
-                                                    ? item.title : "제목 생성중.."
-                                            )
-                                            .font(.callout)
-                                            .foregroundStyle(
-                                                item.isTitleGenerated
-                                                    ? .lbl1 : .lbl3
+                                                "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) · \(item.formattedDuration)"
                                             )
                                             .lineLimit(1)
-                                        }
-
-                                        Text(
-                                            "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) · \(item.formattedDuration)"
-                                        )
-                                        .lineLimit(1)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.lbl2)
-                                        .accessibilityLabel(
-                                            Text(
-                                                "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                            .font(.subheadline)
+                                            .foregroundStyle(.lbl2)
+                                            .accessibilityLabel(
+                                                Text(
+                                                    "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                                )
                                             )
-                                        )
+                                        }
+                                        Spacer()
                                     }
-                                    Spacer()
-                                }
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    guard editingId == nil, !isSelecting else {
-                                        return
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        guard editingId == nil, !isSelecting
+                                        else {
+                                            return
+                                        }
+                                        audioPlayer.setPlaylist(recordings)
+                                        audioPlayer.load(item)
+                                        audioPlayer.play()
                                     }
-                                    audioPlayer.setPlaylist(recordings)
-                                    audioPlayer.load(item)
-                                    audioPlayer.play()
-                                }
 
-                                Button {
-                                    toggleFavorite(item)
-                                } label: {
-                                    Image(
-                                        uiImage: UIImage(
-                                            named: item.isFavorite
-                                                ? "FavoriteOn" : "FavoriteOff"
-                                        )!
-                                    )
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 20, height: 20)
-                                }
-                                .contentShape(Rectangle())
-                                .frame(width: 44, height: 44)
-                                .disabled(isSelecting || editingId != nil)
-                                .accessibilityHidden(true)
-                            }
-                            .listRowBackground(
-                                RoundedRectangle(cornerRadius: 15)
-                                    .fill(.listBg)
-                            )
-                            .listRowSeparator(.hidden)
-                            .padding(5)
-                            .swipeActions(
-                                edge: .leading,
-                                allowsFullSwipe: false
-                            ) {
-                                if !isSelecting && editingId == nil {
                                     Button {
                                         toggleFavorite(item)
                                     } label: {
-                                        VStack {
-                                            Image(
-                                                systemName: item.isFavorite
-                                                    ? "star.slash" : "star.fill"
-                                            )
-                                            Text(
-                                                item.isFavorite
-                                                    ? "즐겨찾기 해제" : "즐겨찾기"
-                                            )
-                                        }
+                                        Image(
+                                            uiImage: UIImage(
+                                                named: item.isFavorite
+                                                    ? "FavoriteOn"
+                                                    : "FavoriteOff"
+                                            )!
+                                        )
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 20, height: 20)
                                     }
-                                    .tint(.main)
+                                    .contentShape(Rectangle())
+                                    .frame(width: 44, height: 44)
+                                    .disabled(isSelecting || editingId != nil)
+                                    .accessibilityHidden(true)
                                 }
-                            }
-                            .swipeActions(
-                                edge: .trailing,
-                                allowsFullSwipe: false
-                            ) {
-                                if !isSelecting && editingId == nil {
-                                    Button {
-                                        pendingDelete = item
-                                        isShowingDeleteAlert = true
-                                    } label: {
-                                        VStack {
-                                            Image(
-                                                systemName: "trash"
-                                            )
-                                            Text("삭제")
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 15)
+                                        .fill(.listBg)
+                                )
+                                .listRowSeparator(.hidden)
+                                .padding(.vertical, 5)
+                                .swipeActions(
+                                    edge: .leading,
+                                    allowsFullSwipe: false
+                                ) {
+                                    if !isSelecting && editingId == nil {
+                                        Button {
+                                            toggleFavorite(item)
+                                        } label: {
+                                            VStack {
+                                                Image(
+                                                    systemName: item.isFavorite
+                                                        ? "star.slash"
+                                                        : "star.fill"
+                                                )
+                                                Text(
+                                                    item.isFavorite
+                                                        ? "즐겨찾기 해제" : "즐겨찾기"
+                                                )
+                                            }
                                         }
+                                        .tint(.main)
                                     }
-                                    .tint(.red1)
-
-                                    Button {
-                                        editingId = item.id
-                                        tempTitle = item.title
-                                    } label: {
-                                        VStack {
-                                            Image(
-                                                systemName: "pencil"
-                                            )
-
-                                            Text("수정")
-                                        }
-                                    }
-                                    .tint(.purple1)
                                 }
+                                .swipeActions(
+                                    edge: .trailing,
+                                    allowsFullSwipe: false
+                                ) {
+                                    if !isSelecting && editingId == nil {
+                                        Button {
+                                            pendingDelete = item
+                                            isShowingDeleteAlert = true
+                                        } label: {
+                                            VStack {
+                                                Image(
+                                                    systemName: "trash"
+                                                )
+                                                Text("삭제")
+                                            }
+                                        }
+                                        .tint(.red1)
+
+                                        Button {
+                                            editingId = item.id
+                                            tempTitle = item.title
+                                        } label: {
+                                            VStack {
+                                                Image(
+                                                    systemName: "pencil"
+                                                )
+
+                                                Text("수정")
+                                            }
+                                        }
+                                        .tint(.purple1)
+
+                                        if let url = fileURL(for: item) {
+                                            ShareLink(item: url) {
+                                                VStack {
+                                                    Image(
+                                                        systemName:
+                                                            "square.and.arrow.up"
+                                                    )
+                                                    Text("공유")
+                                                }
+                                            }
+                                            .tint(.accent)
+                                        }
+                                    }
+                                }
+                                .tag(item.id)
+                                .accessibilityElement(children: .combine)
+                                .accessibilityAddTraits(.isButton)
                             }
-                            .tag(item.id)
-                            .accessibilityElement(children: .combine)
-                            .accessibilityAddTraits(.isButton)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .accessibilitySortPriority(3)
 
-                    if !isSelecting {
+                    if !isSelecting && !isEditingFocused {
                         MiniPlayerView()
                             .frame(maxWidth: .infinity)
                             .padding(.bottom, 10)
@@ -198,7 +228,6 @@ struct ArchiveView: View {
                     }
                 }
             }
-            .listStyle(.plain)
             .listRowSpacing(10)
             .scrollContentBackground(.hidden)
             .alert("현재 녹음을 삭제하겠습니까?", isPresented: $isShowingDeleteAlert) {
@@ -251,11 +280,10 @@ struct ArchiveView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {
                     if isSelecting {
-                        Button {
-                            selectAll()
-                        } label: {
-                            Text("전체 선택")
+                        ShareLink(items: selectedFileURLs) {
+                            Image(systemName: "square.and.arrow.up")
                         }
+                        .disabled(selectedFileURLs.isEmpty)
 
                         Spacer()
 
@@ -278,10 +306,24 @@ struct ArchiveView: View {
         }
     }
 
+    private var selectedFileURLs: [URL] {
+        recordings
+            .filter { selection.contains($0.id) }
+            .compactMap { fileURL(for: $0) }
+    }
+
+    private func fileURL(for recording: Recording) -> URL? {
+        let fileName = recording.fileName
+        let documentURL = getDocumentURL()
+
+        let fileURL = documentURL.appendingPathComponent(fileName)
+
+        return fileURL
+    }
+
     private func commitEdit(for item: Recording) {
         let newTitle = tempTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newTitle.isEmpty else {
-            // 빈 제목이면 편집 종료만
             editingId = nil
             return
         }
@@ -325,20 +367,5 @@ struct ArchiveView: View {
         }
         delete(targets)
         selection.removeAll()
-    }
-
-    private func selectAll() {
-        // 비어 있으면 할 일 없음
-        guard !recordings.isEmpty else {
-            selection.removeAll()
-            return
-        }
-
-        // 전부 선택되어 있으면 해제, 아니면 모두 선택
-        if selection.count == recordings.count {
-            selection.removeAll()
-        } else {
-            selection = Set(recordings.map { $0.id })
-        }
     }
 }

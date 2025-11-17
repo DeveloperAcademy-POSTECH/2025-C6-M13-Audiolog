@@ -11,6 +11,7 @@ import SwiftData
 import SwiftUI
 
 struct RecordView: View {
+    @Environment(AudioPlayer.self) private var audioPlayer
     let audioProcesser: AudioProcesser
 
     @State private var audioRecorder = AudioRecorder()
@@ -28,6 +29,7 @@ struct RecordView: View {
     @State private var showToast: Bool = false
     @State private var isBusy: Bool = false
     @Binding var isRecordCreated: Bool
+    @Binding var startFromShortcut: Bool
 
     @AccessibilityFocusState private var voFocused: Bool
 
@@ -182,6 +184,7 @@ struct RecordView: View {
                         await stopAndPersistRecordingOnScenePhaseChange()
                     }
                 }
+                UIApplication.shared.isIdleTimerDisabled = false
             }
             .onChange(of: scenePhase) {
                 guard audioRecorder.isRecording,
@@ -194,6 +197,15 @@ struct RecordView: View {
         }
         .accessibilityAction(.magicTap) {
             handleRecordButtonTapped()
+        }
+        .task(id: startFromShortcut) {
+            guard startFromShortcut else { return }
+
+            if !audioRecorder.isRecording {
+                handleRecordButtonTapped()
+            }
+
+            startFromShortcut = false
         }
     }
 
@@ -313,7 +325,12 @@ struct RecordView: View {
             }
         } else {
             logger.log("[RecordView] Starting recording...")
+            if audioPlayer.isPlaying {
+                audioPlayer.pause()
+            }
+            timelineStart = Date()
             audioRecorder.startRecording()
+            UIApplication.shared.isIdleTimerDisabled = true
             logger.log(
                 "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
             )
