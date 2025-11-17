@@ -19,6 +19,38 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
     }
+    
+    func locationManager(
+        _ manager: CLLocationManager,
+        didUpdateLocations locations: [CLLocation]
+    ) {
+        guard let location = locations.first else { return }
+        let latitude = location.coordinate.latitude
+        let longitude = location.coordinate.longitude
+
+        fetchBuildingNameFromKakao(
+            latitude: latitude,
+            longitude: longitude,
+            location: location
+        ) {
+            [weak self] buildingName in
+            guard let self = self else { return }
+            if let name = buildingName {
+                DispatchQueue.main.async {
+                    self.onLocationUpdate?(location, name)
+                }
+            } else {
+                self.onError?("카카오맵 건물명 가져오기 실패")
+            }
+        }
+    }
+
+    func locationManager(
+        _ manager: CLLocationManager,
+        didFailWithError error: Error
+    ) {
+        onError?("위치 가져오기 실패")
+    }
 
     func requestLocation() {
         let status = locationManager.authorizationStatus
@@ -34,7 +66,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    func fetchBuildingNameFromKakao(
+   private func fetchBuildingNameFromKakao(
         latitude: Double,
         longitude: Double,
         location: CLLocation,
@@ -204,37 +236,5 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
 
             self.onLocationUpdate?(location, fullAddress)
         }
-    }
-
-    func locationManager(
-        _ manager: CLLocationManager,
-        didUpdateLocations locations: [CLLocation]
-    ) {
-        guard let location = locations.first else { return }
-        let latitude = location.coordinate.latitude
-        let longitude = location.coordinate.longitude
-
-        fetchBuildingNameFromKakao(
-            latitude: latitude,
-            longitude: longitude,
-            location: location
-        ) {
-            [weak self] buildingName in
-            guard let self = self else { return }
-            if let name = buildingName {
-                DispatchQueue.main.async {
-                    self.onLocationUpdate?(location, name)
-                }
-            } else {
-                self.onError?("카카오맵 건물명 가져오기 실패")
-            }
-        }
-    }
-
-    func locationManager(
-        _ manager: CLLocationManager,
-        didFailWithError error: Error
-    ) {
-        onError?("위치 가져오기 실패")
     }
 }
