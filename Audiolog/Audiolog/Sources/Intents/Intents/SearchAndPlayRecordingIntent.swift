@@ -18,13 +18,11 @@ struct SearchAndPlayRecordingIntent: AppIntent {
     )
     var query: String
 
-    // 🔹 기본 init (필수는 아니지만 명시해두면 깔끔)
     init() {}
 
-    // 🔹 위젯에서 쓸, String 파라미터용 init
     init(query: String) {
         self.init()
-        self.query = query      // @Parameter 의 wrappedValue 에 바로 대입
+        self.query = query
     }
 
     @MainActor

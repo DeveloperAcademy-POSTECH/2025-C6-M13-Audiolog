@@ -16,9 +16,8 @@ final class ShortcutBridge {
         case none
         case startRecording
         case searchAndPlay(query: String)
-        case playCategory(String)     // ← 추가
+        case playCategory(String)
     }
-
 
     var action: Action = .none
 }

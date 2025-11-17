@@ -15,7 +15,10 @@ struct RecordWidgetProvider: TimelineProvider {
         )
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (RecordWidgetEntry) -> ()) {
+    func getSnapshot(
+        in context: Context,
+        completion: @escaping (RecordWidgetEntry) -> Void
+    ) {
         let cats = loadCategories()
         completion(
             RecordWidgetEntry(
@@ -25,35 +28,38 @@ struct RecordWidgetProvider: TimelineProvider {
         )
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<RecordWidgetEntry>) -> ()) {
+    func getTimeline(
+        in context: Context,
+        completion: @escaping (Timeline<RecordWidgetEntry>) -> Void
+    ) {
         let cats = loadCategories()
 
         let entry = RecordWidgetEntry(
             date: Date(),
             categories: cats
         )
-        let nextUpdate = Calendar.current.date(byAdding: .hour, value: 1, to: Date())
+        let nextUpdate =
+            Calendar.current.date(byAdding: .hour, value: 1, to: Date())
             ?? Date().addingTimeInterval(3600)
 
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
         completion(timeline)
     }
 
-    // MARK: - App Group 에서 분류 결과 읽기
-
     private func loadCategories() -> [(String, Int)] {
         let defaults = UserDefaults(suiteName: "group.seancho.audiolog")
 
-        guard let dict = defaults?.dictionary(forKey: "recap_items_dict") as? [String: Int],
-              !dict.isEmpty
+        guard
+            let dict = defaults?.dictionary(forKey: "recap_items_dict")
+                as? [String: Int],
+            !dict.isEmpty
         else {
             return []
         }
 
-        // 많이 등장한 순으로 정렬해서 (제목, 개수) 튜플 배열로 반환
-        return dict
+        return
+            dict
             .sorted { $0.value > $1.value }
             .map { ($0.key, $0.value) }
     }
 }
-

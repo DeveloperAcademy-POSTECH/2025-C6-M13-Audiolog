@@ -168,8 +168,6 @@ struct RecordView: View {
                 }
             }
         }
-<<<<<<< Updated upstream
-=======
         .accessibilityAction(.magicTap) {
             handleRecordButtonTapped()
         }
@@ -182,7 +180,6 @@ struct RecordView: View {
 
             startFromShortcut = false
         }
->>>>>>> Stashed changes
     }
 
     private func stopAndPersistRecordingOnScenePhaseChange() async {
@@ -226,7 +223,10 @@ struct RecordView: View {
                 "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
             )
         }
-        await audioProcesser.enqueueProcess(for: recording, modelContext: modelContext)
+        await audioProcesser.enqueueProcess(
+            for: recording,
+            modelContext: modelContext
+        )
     }
 
     private func handleRecordButtonTapped() {

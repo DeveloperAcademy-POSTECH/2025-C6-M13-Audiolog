@@ -15,7 +15,6 @@ struct PlayRecapCategoryIntent: AppIntent {
     @Parameter(title: "카테고리 이름")
     var category: String
 
-    // 기본 생성자
     init() {}
 
     init(category: String) {

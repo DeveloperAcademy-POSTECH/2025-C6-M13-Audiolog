@@ -12,7 +12,7 @@ import WidgetKit
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
     private let audioProcesser = AudioProcesser()
-    
+
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: [
@@ -28,7 +28,7 @@ struct AudiologView: View {
     @State private var shortcutBridge = ShortcutBridge.shared
     @State private var startRecordingFromShortcut: Bool = false
     @State private var searchQueryFromShortcut: String = ""
-    
+
     private var processedCount: Int {
         recordings.filter { $0.isTitleGenerated }.count
     }
@@ -40,15 +40,11 @@ struct AudiologView: View {
                 systemImage: "microphone",
                 value: "녹음"
             ) {
-<<<<<<< Updated upstream
-                RecordView(audioProcesser: audioProcesser, isRecordCreated: $isRecordCreated)
-=======
                 RecordView(
                     audioProcesser: audioProcesser,
                     isRecordCreated: $isRecordCreated,
                     startFromShortcut: $startRecordingFromShortcut
                 )
->>>>>>> Stashed changes
             }
 
             Tab(
@@ -56,7 +52,10 @@ struct AudiologView: View {
                 systemImage: "play.square.stack.fill",
                 value: "전체 로그"
             ) {
-                ArchiveView(isRecordCreated: $isRecordCreated, isSelecting: $isSelecting)
+                ArchiveView(
+                    isRecordCreated: $isRecordCreated,
+                    isSelecting: $isSelecting
+                )
             }
             .badge(isRecordCreated ? Text("N") : nil)
 
@@ -133,7 +132,10 @@ struct AudiologView: View {
                 continue
             }
             let processor = AudioProcesser()
-            await processor.enqueueProcess(for: target, modelContext: modelContext)
+            await processor.enqueueProcess(
+                for: target,
+                modelContext: modelContext
+            )
         }
         logger.log("[AudiologView] Reprocess done.")
     }
@@ -154,7 +156,7 @@ struct AudiologView: View {
         case .searchAndPlay(let query):
             currentTab = "검색"
             searchQueryFromShortcut = query
-            
+
         case .playCategory(let tag):
             currentTab = "추천 로그"
             playCategory(tag)
@@ -192,9 +194,8 @@ struct AudiologView: View {
 
         logger.log("[AudiologView] Updated recap widget snapshot. dict=\(dict)")
     }
-    
+
     private func playCategory(_ tag: String) {
-        // 1) SwiftData recordings 안에서 RecapView와 동일한 방식으로 필터링
         let filtered = recordings.filter { recording in
             if tag == "즐겨찾기" {
                 return recording.isFavorite
@@ -207,7 +208,6 @@ struct AudiologView: View {
             return
         }
 
-        // 2) PlaylistView의 “전체 재생” 버튼과 동일한 로직
         audioPlayer.setPlaylist(filtered)
         audioPlayer.load(filtered[0])
         audioPlayer.play()

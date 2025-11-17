@@ -1,8 +1,8 @@
 // RecordWidgetView.swift
 
+import AppIntents
 import SwiftUI
 import WidgetKit
-import AppIntents
 
 struct RecordWidgetView: View {
     @Environment(\.widgetFamily) private var family
@@ -11,9 +11,6 @@ struct RecordWidgetView: View {
     var body: some View {
         content
             .containerBackground(for: .widget) {
-                // 여기서 실제 배경색 지정
-                // Asset 에 "WidgetBackground" 있으면 그거 쓰고,
-                // 없으면 Color(.systemBackground) 정도로
                 Color("WidgetBackground")
             }
     }
@@ -118,7 +115,8 @@ struct RecordWidgetView: View {
 
                         Spacer()
 
-                        Button(intent: PlayRecapCategoryIntent(category: title)) {
+                        Button(intent: PlayRecapCategoryIntent(category: title))
+                        {
                             Image(systemName: "play.circle.fill")
                                 .font(.system(size: 26))
                         }
