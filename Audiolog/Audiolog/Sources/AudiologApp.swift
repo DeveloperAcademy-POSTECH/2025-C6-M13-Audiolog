@@ -10,9 +10,12 @@ import SwiftData
 
 @main
 struct AudiologApp: App {
+    @State private var shortcutBridge = ShortcutBridge()
+    
     var body: some Scene {
         WindowGroup {
             AudiologView()
+                .environment(shortcutBridge)
                 .modelContainer(for: Recording.self)
         }
     }

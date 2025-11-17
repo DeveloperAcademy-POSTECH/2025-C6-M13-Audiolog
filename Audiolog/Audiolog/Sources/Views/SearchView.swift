@@ -24,6 +24,8 @@ struct SearchView: View {
     @State private var searchText: String = ""
     @FocusState private var isSearchFocused: Bool
 
+    @Binding var externalQuery: String
+
     @AppStorage(RecentSearch.data) private var recentSearch: String = ""
 
     private var recentItems: [String] {
@@ -178,6 +180,21 @@ struct SearchView: View {
         .searchFocused($isSearchFocused)
         .onSubmit(of: .search) {
             saveRecent(searchText)
+        }
+        .task(id: externalQuery) {
+            let q = externalQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !q.isEmpty else { return }
+
+            // Intent에서 넘어온 검색어로 검색 시작
+            searchText = q
+            saveRecent(q)
+
+            let results = filtered
+            if let first = results.first {
+                audioPlayer.setPlaylist(results)
+                audioPlayer.load(first)
+                audioPlayer.play()
+            }
         }
     }
 

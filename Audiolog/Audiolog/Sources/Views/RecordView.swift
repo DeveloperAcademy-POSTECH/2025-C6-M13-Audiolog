@@ -27,6 +27,7 @@ struct RecordView: View {
 
     @State private var showToast: Bool = false
     @Binding var isRecordCreated: Bool
+    @Binding var startFromShortcut: Bool
 
     private var pulsingOpacity: Double {
         let t = audioRecorder.timeElapsed
@@ -167,6 +168,21 @@ struct RecordView: View {
                 }
             }
         }
+<<<<<<< Updated upstream
+=======
+        .accessibilityAction(.magicTap) {
+            handleRecordButtonTapped()
+        }
+        .task(id: startFromShortcut) {
+            guard startFromShortcut else { return }
+
+            if !audioRecorder.isRecording {
+                handleRecordButtonTapped()
+            }
+
+            startFromShortcut = false
+        }
+>>>>>>> Stashed changes
     }
 
     private func stopAndPersistRecordingOnScenePhaseChange() async {
