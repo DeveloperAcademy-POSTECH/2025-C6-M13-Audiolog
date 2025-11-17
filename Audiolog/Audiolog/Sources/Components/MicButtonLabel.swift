@@ -17,21 +17,22 @@ struct MicButtonLabel: View {
 
     var body: some View {
         Image(systemName: isRecording ? "stop.fill" : "microphone.fill")
-            .font(.system(size: isRecording ? 40 : 45))
-            .tint(.white)
-            .frame(width: 118, height: 118)
+            .font(.system(size: 44))
+            .tint(.white.opacity(0.9))
+            .frame(width: 96, height: 96)
             .background(
                 ZStack {
-                    Circle().fill(.main)
-                    Circle().fill(.ultraThinMaterial)
+                    Circle().fill(.main.opacity(0.5))
                     Circle()
                         .stroke(
                             AngularGradient(
                                 gradient: Gradient(colors: [
                                     Color.white.opacity(1),
-                                    Color.white.opacity(0),
+                                    Color.sub.opacity(0.4),
+                                    Color.main.opacity(0.4),
                                     Color.white.opacity(1),
-                                    Color.white.opacity(0),
+                                    Color.sub.opacity(0.4),
+                                    Color.main.opacity(0.4),
                                     Color.white.opacity(1),
                                 ]),
                                 center: .center
@@ -43,7 +44,8 @@ struct MicButtonLabel: View {
                         .rotationEffect(rotateAngle)
                 }
             )
-            .glassEffect(.regular.interactive())
+            .glassEffect(.clear)
+            .accessibilityLabel(isRecording ? "중단" : "녹음")
             .onAppear {
                 startMotionUpdates()
             }
@@ -55,31 +57,14 @@ struct MicButtonLabel: View {
             let y = gravity.y
 
             let newAngle = -Angle(radians: atan2(y, x))
-            let current = rotateAngle.radians
-            let target = newAngle.radians
-
-            var delta = target - current
-            while delta > .pi { delta -= 2 * .pi }
-            while delta <= -.pi { delta += 2 * .pi }
-
-            if abs(delta) > .pi {
-                rotateAngle = newAngle
-            } else {
-                withAnimation(.easeOut(duration: 0.1)) {
-                    rotateAngle = newAngle
-                }
-            }
+            rotateAngle = newAngle
         }
     }
 
     private func startMotionUpdates() {
-        motionManager.deviceMotionUpdateInterval = 0.1
+        motionManager.deviceMotionUpdateInterval = 0.05
         motionManager.startDeviceMotionUpdates(to: .main) { _, _ in
             fetchDeviceOrientation()
         }
     }
-}
-
-#Preview {
-    MicButtonLabel(isRecording: true)
 }

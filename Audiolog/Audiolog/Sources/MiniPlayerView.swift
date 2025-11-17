@@ -28,93 +28,65 @@ struct MiniPlayerView: View {
                         }
                     }
                     Spacer()
+
+                    Button {
+                        let nextIndex = (audioPlayer.playbackRateIndex + 1) % audioPlayer.allPlaybackRates.count
+                        audioPlayer.playbackRateIndex = nextIndex
+                    } label: {
+                        Text(audioPlayer.allPlaybackRates[audioPlayer.playbackRateIndex].label)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.lbl1)
+                            .monospacedDigit()
+                    }
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
                 }
                 .padding(.top, 20)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 14)
 
-                TimelineView(.periodic(from: .now, by: 0.5)) { _ in
-                    let duration = max(audioPlayer.totalDuration, 1)
-                    let currentTime =
-                        isScrubbing
-                        ? scrubTime
-                        : audioPlayer.currentPlaybackTime
-                    GeometryReader { proxy in
-                        let width = max(proxy.size.width, 1)
-                        let clampedCurrent = min(
-                            max(currentTime, 0),
-                            duration
-                        )
-                        let progress =
-                            duration > 0 ? clampedCurrent / duration : 0
+                let duration = max(audioPlayer.audioLengthSeconds, 1)
+                let currentTime =
+                    isScrubbing ? scrubTime : audioPlayer.currentPlaybackTime
 
-                        VStack {
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(
-                                    cornerRadius: 3,
-                                    style: .continuous
-                                )
-                                .fill(.lbl3)
-                                .frame(height: 7)
-
-                                RoundedRectangle(
-                                    cornerRadius: 3,
-                                    style: .continuous
-                                )
-                                .fill(.lbl1)
-                                .frame(
-                                    width: max(
-                                        0,
-                                        min(width * progress, width)
-                                    ),
-                                    height: 7
-                                )
+                VStack(spacing: 4) {
+                    Slider(
+                        value: Binding(
+                            get: { currentTime },
+                            set: { newValue in
+                                let clamped = min(max(newValue, 0), duration)
+                                scrubTime = clamped
                             }
-
-                            Spacer()
-
-                            HStack {
-                                Text(formatTime(currentTime))
-                                Spacer()
-                                Text(formatTime(duration))
-                            }
-                            .font(.footnote.weight(.semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(.lbl3)
-                        }
-                        .frame(height: 28)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
+                        ),
+                        in: 0...duration,
+                        onEditingChanged: { editing in
+                            if editing {
+                                DispatchQueue.main.async {
                                     isScrubbing = true
-                                    let x = min(
-                                        max(0, value.location.x),
-                                        width
-                                    )
-                                    let ratio = width > 0 ? x / width : 0
-                                    let newTime = ratio * duration
-                                    scrubTime = min(
-                                        max(newTime, 0),
-                                        duration
-                                    )
+                                    scrubTime = audioPlayer.currentPlaybackTime
                                 }
-                                .onEnded { value in
-                                    let x = min(
-                                        max(0, value.location.x),
-                                        width
-                                    )
-                                    let ratio = width > 0 ? x / width : 0
-                                    let newTime = ratio * duration
-                                    scrubTime = min(
-                                        max(newTime, 0),
-                                        duration
-                                    )
+                            } else {
+                                DispatchQueue.main.async {
                                     isScrubbing = false
-                                    audioPlayer.seek(to: scrubTime)
                                 }
-                        )
+                            }
+                        }
+                    )
+                    .tint(.lbl1)
+                    .onChange(of: isScrubbing) { _, newValue in
+                        if newValue == false {
+                            audioPlayer.seek(to: scrubTime)
+                        }
                     }
+
+                    HStack {
+                        Text(formatTime(currentTime))
+                        Spacer()
+                        Text(formatTime(duration))
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(.lbl3)
                 }
                 .frame(height: 28)
                 .padding(.horizontal, 20)
@@ -130,7 +102,7 @@ struct MiniPlayerView: View {
                     }
 
                     Button {
-                        audioPlayer.skipBackward5()
+                        audioPlayer.skip(forwards: false)
                     } label: {
                         Image(systemName: "gobackward.5")
                             .resizable()
@@ -152,7 +124,7 @@ struct MiniPlayerView: View {
                     }
 
                     Button {
-                        audioPlayer.skipForward5()
+                        audioPlayer.skip(forwards: true)
                     } label: {
                         Image(systemName: "goforward.5")
                             .resizable()
@@ -193,6 +165,10 @@ struct MiniPlayerView: View {
         }
         .glassEffect(in: .rect(cornerRadius: 34))
         .animation(.default, value: audioPlayer.isPlaying)
+        .accessibilityAction(.magicTap) {
+            audioPlayer.togglePlayPause()
+        }
+        .contentShape(Rectangle())
     }
 
     private func formatTime(_ time: Double) -> String {

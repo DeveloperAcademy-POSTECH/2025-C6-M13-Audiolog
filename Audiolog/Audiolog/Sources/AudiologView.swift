@@ -23,7 +23,6 @@ struct AudiologView: View {
     @State private var isPresentingPlayerSheet: Bool = false
     @State private var isReprocessingPending = false
     @State private var isRecordCreated: Bool = false
-    @State private var isSelecting: Bool = false
 
     @State private var shortcutBridge = ShortcutBridge.shared
     @State private var startRecordingFromShortcut: Bool = false
@@ -61,7 +60,7 @@ struct AudiologView: View {
 
             Tab(
                 "추천 로그",
-                systemImage: "rectangle.split.2x2.fill",
+                systemImage: "rectangle.grid.2x2.fill",
                 value: "추천 로그"
             ) {
                 RecapView()
@@ -78,20 +77,10 @@ struct AudiologView: View {
                 )
             }
         }
-        .overlay(alignment: .bottom) {
-            if !isSelecting {
-                VStack {
-                    Spacer()
-                    MiniPlayerView()
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 58)
-                .padding(.horizontal, 20)
-                .transition(.opacity)
-            }
-        }
         .environment(audioPlayer)
         .task {
+            let emptyThumb = UIImage()
+            UISlider.appearance().setThumbImage(emptyThumb, for: .normal)
             await reprocessPendingTitlesIfNeeded()
         }
         .onChange(of: shortcutBridge.action) { _, newValue in

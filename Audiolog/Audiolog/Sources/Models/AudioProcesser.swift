@@ -5,7 +5,7 @@
 //  Created by 성현 on 11/6/25.
 //
 
-import AVFoundation
+@preconcurrency import AVFoundation
 import Foundation
 import FoundationModels
 import Playgrounds
@@ -14,18 +14,43 @@ import SoundAnalysis
 import Speech
 import SwiftData
 import UniformTypeIdentifiers
+import os
 
 actor AudioProcesser {
     private var session: LanguageModelSession
-    private let titlePolicy: TitlePolicy
 
-    private var lastTask: Task<Void, Never>? = nil
+    private var lastTask: Task<Void, Never>?
     private var inflight: Set<UUID> = []
 
+    private let logger = Logger()
+
     init() {
-        let policy = AudioProcesser.loadTitlePolicyOnce()
-        self.titlePolicy = policy
-        let instructions = AudioProcesser.buildTitleInstructions(from: policy)
+        let baseInstructions = """
+        너는 녹음 메모에 붙일 한국어 제목을 만들어 주는 도우미야.
+
+        규칙:
+        - 항상 한국어 한 문장만 출력해
+        - 줄바꿈, 따옴표, 이모지, 해시태그, 접두 라벨을 쓰지 마
+        - 입력 JSON에 없는 사람 이름/장소/곡명/행사 이름은 새로 만들지 마
+        - 음성 비율이 낮으면 '대화/회의/인터뷰/혼잣말' 같은 표현은 피하고, 환경 소리 중심으로 표현해
+        - 파도/바다/해변 소리가 거의 없으면 그런 단어는 쓰지 마
+        - 걷는 소리가 거의 없으면 '산책/걷기/조깅' 같은 표현은 쓰지 마
+        """
+
+        let fewShotBlock = AudioProcesser.loadFewShotBlock()
+
+        let instructions: String
+        if fewShotBlock.isEmpty {
+            instructions = baseInstructions
+        } else {
+            instructions = """
+            \(baseInstructions)
+
+            예시(Few-shot, 형식 참고용):
+            \(fewShotBlock)
+            """
+        }
+
         self.session = LanguageModelSession(instructions: instructions)
     }
 
@@ -54,25 +79,6 @@ actor AudioProcesser {
     // 내부 상태
     private var analyzerRef: SNAudioFileAnalyzer?
     private var observerRef: ClassificationObserver?
-
-    /// TitlePolicy → 시스템 프롬프트(instructions)
-
-    private static func loadTitlePolicyOnce() -> TitlePolicy {
-        guard
-            let url = Bundle.main.url(
-                forResource: "TitlePolicy",
-                withExtension: "json"
-            )
-        else {
-            fatalError("[TitlePolicy] TitlePolicy.json not found in bundle")
-        }
-        do {
-            let data = try Data(contentsOf: url)
-            return try JSONDecoder().decode(TitlePolicy.self, from: data)
-        } catch {
-            fatalError("[TitlePolicy] Failed to decode: \(error)")
-        }
-    }
 
     // MARK: - Public entrypoint
     private func runProcess(
@@ -135,7 +141,7 @@ actor AudioProcesser {
             )
 
             do {
-                try await MainActor.run { try modelContext.save() }
+                try modelContext.save()
                 logger.log("[AudioProcesser] (2.5) 중간 저장 OK")
             } catch {
                 logNSError(error, prefix: "(2.5) modelContext.save()")
@@ -148,14 +154,14 @@ actor AudioProcesser {
                     url: safeURL,
                     localeIdentifier: "ko_KR"
                 ) {
-                    await MainActor.run { recording.dialog = transcript }
+                    recording.dialog = transcript
                     logStep(3, "전사 완료", ["length": "\(transcript.count)"])
                     let preview = transcript.replacingOccurrences(
                         of: "\n",
                         with: " "
                     ).prefix(120)
                     logger.log("[AudioProcesser] (3) 전사 미리보기: \(preview)")
-                    try? await MainActor.run { try modelContext.save() }
+                    try modelContext.save()
                 } else {
                     logger.log("[AudioProcesser] (3) 전사 스킵 또는 실패")
                 }
@@ -163,40 +169,29 @@ actor AudioProcesser {
                 logger.log("[AudioProcesser] (3) hasVoice=false 전사 스킵")
             }
 
-            // 4) 샤잠킷(음악성 신호 있을 때)
-            let lowerTop5 = top5.map { $0.lowercased() }
-            let looksLikeMusic = lowerTop5.contains { l in
-                l.contains("music") || l.contains("singing")
-                    || l.contains("instrument") || l.contains("song")
-                    || l.contains("drum") || l.contains("guitar")
-            }
-
-            if looksLikeMusic {
-                logStep(
-                    4,
-                    "ShazamKit 매칭 시작",
-                    ["url": safeURL.lastPathComponent]
-                )
-                do {
-                    if let item = try await identifyMusic(from: safeURL) {
-                        await MainActor.run {
-                            recording.bgmTitle =
-                                item.title ?? recording.bgmTitle
-                            recording.bgmArtist =
-                                item.artist ?? recording.bgmArtist
-                        }
-                        logger.log(
-                            "[AudioProcesser] (4.5) ShazamKit 매칭: \(item.title ?? "?") - \(item.artist ?? "?")"
-                        )
-                        try? await MainActor.run { try modelContext.save() }
-                    } else {
-                        logger.log("[AudioProcesser] (4.5) ShazamKit 매칭 결과 없음")
+            // 4) 샤잠킷
+            logStep(
+                4,
+                "ShazamKit 매칭 시작",
+                ["url": safeURL.lastPathComponent]
+            )
+            do {
+                if let item = try await identifyMusic(from: safeURL) {
+                    await MainActor.run {
+                        recording.bgmTitle =
+                            item.title ?? recording.bgmTitle
+                        recording.bgmArtist =
+                            item.artist ?? recording.bgmArtist
                     }
-                } catch {
-                    logNSError(error, prefix: "(4.5) ShazamKit")
+                    logger.log(
+                        "[AudioProcesser] (4.5) ShazamKit 매칭: \(item.title ?? "?") - \(item.artist ?? "?")"
+                    )
+                    try modelContext.save()
+                } else {
+                    logger.log("[AudioProcesser] (4.5) ShazamKit 매칭 결과 없음")
                 }
-            } else {
-                logger.log("[AudioProcesser] (4.5) 음악 신호 낮음 → ShazamKit 스킵")
+            } catch {
+                logNSError(error, prefix: "(4.5) ShazamKit")
             }
 
             // 5) 타이틀 생성
@@ -205,8 +200,7 @@ actor AudioProcesser {
                 for: recording,
                 using: session,
                 temperature: 0.35,
-                tagWeights: stats,
-                policy: self.titlePolicy
+                tagWeights: stats
             ) {
                 await MainActor.run {
                     recording.title = title
@@ -221,7 +215,7 @@ actor AudioProcesser {
 
             // 6) 최종 저장
             logStep(6, "최종 저장 시작", [:])
-            try await MainActor.run { try modelContext.save() }
+            try modelContext.save()
             logStep(6, "최종 저장 완료", ["recordingId": recording.id.uuidString])
 
         } catch {
@@ -237,7 +231,9 @@ actor AudioProcesser {
     // MARK: - File preparation (mov/mp4 → m4a 보장)
     /// 분석 가능한 오디오 URL 보장: 트랙 없으면 에러, 필요 시 M4A로 추출
     private func prepareAudioURL(_ url: URL) async throws -> URL {
-        logger.log("[AudioProcesser] (1) prepareAudioURL 입력: \(debugURL(url))")
+        logger.log(
+            "[AudioProcesser] (1) prepareAudioURL 입력: \(self.debugURL(url))"
+        )
         let asset = AVURLAsset(url: url)
 
         // 가용성 로깅 (deprecated 속성 대신 load API 사용)
@@ -281,7 +277,9 @@ actor AudioProcesser {
                 from: asset,
                 basename: url.deletingPathExtension().lastPathComponent
             )
-            logger.log("[AudioProcesser] (1) exportToM4A 성공: \(debugURL(out))")
+            logger.log(
+                "[AudioProcesser] (1) exportToM4A 성공: \(self.debugURL(out))"
+            )
             return out
         } catch {
             logNSError(error, prefix: "(1) exportToM4A")
@@ -322,7 +320,7 @@ actor AudioProcesser {
         } catch {
             logNSError(error, prefix: "(1) AVAssetExport")
             logger.log(
-                "[AudioProcesser] (1) AVAssetExport FAIL out=\(debugURL(out))"
+                "[AudioProcesser] (1) AVAssetExport FAIL out=\(self.debugURL(out))"
             )
             throw error
         }
@@ -344,7 +342,9 @@ actor AudioProcesser {
 
     // MARK: - Sound Analysis
     private func analyzeSound(url: URL) async throws -> ([String: Int], Bool) {
-        logger.log("[AudioProcesser] (2) analyzeSound 입력: \(debugURL(url))")
+        logger.log(
+            "[AudioProcesser] (2) analyzeSound 입력: \(self.debugURL(url))"
+        )
 
         let analyzer = try SNAudioFileAnalyzer(url: url)
         let request = try SNClassifySoundRequest(
@@ -384,14 +384,9 @@ actor AudioProcesser {
         let observer = ClassificationObserver { result, finished in
             switch result {
             case .success(let items):
-                // SNClassificationResult 전부를 못 받으니, items에서 top2를 추정:
-                // (여기서는 너가 기존에 추가하는 로직에서 r.classifications를 직접 받아와도 OK)
-                // 임시: items는 이미 conf>0.20 필터가 있었음 → 기존 필터 제거하고 원본 topN을 받아오도록 조정 권장
-                // 지금은 대안으로 정렬:
                 let sorted = items.sorted { $0.confidence > $1.confidence }
                 if let first = sorted.first {
                     let second = sorted.dropFirst().first
-                    // C-2) 에너지는 별도 측정이 정확하지만, 대체로 conf 낮은 프레임은 에너지도 낮다 가정
                     frames.append(
                         FrameVote(
                             time: first.timeRange,
@@ -414,8 +409,8 @@ actor AudioProcesser {
         self.observerRef = observer
         do {
             try await analyzer.analyze()
-            observer.finish()
-        } catch { observer.fail(error) }
+            await observer.finish()
+        } catch { await observer.fail(error) }
         try await cont.wait()
 
         // A-2) 마진/문턱 적용 + B) 런 길이 스무딩
@@ -534,7 +529,6 @@ actor AudioProcesser {
     }
 
     // MARK: Music identifier
-    // TODO: 샤잠킷 함수
     private func identifyMusic(from url: URL) async throws
         -> SHMatchedMediaItem?
     {
@@ -549,7 +543,7 @@ actor AudioProcesser {
                     cont.resume(returning: item)
                 case .failure(let error):
                     let ns = error as NSError
-                    logger.log(
+                    self.logger.log(
                         "[AudioProcesser] (4.5) ShazamKit 실패: domain=\(ns.domain) code=\(ns.code) msg=\(ns.localizedDescription) userInfo=\(ns.userInfo)"
                     )
                     cont.resume(throwing: error)
@@ -679,6 +673,7 @@ actor AudioProcesser {
             retainCycle = nil
         }
     }
+
     // MARK: - Debug helpers
 
     /// 단계를 번호와 함께 기록
@@ -698,7 +693,7 @@ actor AudioProcesser {
             msg += " | suggestion=\(s)"
         }
         if !ns.userInfo.isEmpty { msg += " | userInfo=\(ns.userInfo)" }
-        logger.log(msg)
+        logger.log("\(msg)")
     }
 
     /// 파일 경로/존재/사이즈/타임스탬프를 문자열로 요약
@@ -816,73 +811,58 @@ private class ClassificationObserver: NSObject, SNResultsObserving {
     }
 }
 
+private struct TitleFewShotBundle: Decodable {
+    let fewShots: [TitleFewShot]
+}
+
+private struct TitleFewShot: Decodable {
+    let input: [String: String]
+    let output: String
+}
+
 extension AudioProcesser {
-    fileprivate static func buildTitleInstructions(from p: TitlePolicy)
-        -> String
-    {
-        let guardrails = p.guardrails.map { "• \($0)" }.joined(separator: "\n")
-
-        let ratioPrinciples = """
-            비중(태그비율) 원칙:
-            - 주태그 비율이 35% 이상이면 제목의 핵심 콘셉트로 반드시 반영
-            - 20~35% 구간은 맥락(전사/특수케이스/위치)과 조화롭게 선택 반영
-            - 12% 미만 태그 단어는 제목에 직접 쓰지 말고 분위기 힌트로만 사용
-            """
-
-        let hardBans = """
-            금지 규칙(MUST NOT):
-            - 입력 JSON에 '위치'가 없으면 지명/장소(부산/해운대/서울/카페 등) 절대 금지
-            - '음성유무'가 false면 말/대화/회의/인터뷰/독백 등 발화 관련 단어 금지
-            - '물/파도허용'이 false면 파도/바다/해변 관련 단어 금지
-            - 입력에 없는 인명/행사명/지명/곡명/가수 생성 금지(추정/창작 금지)
-            """
-
-        // 보행/스피치 ‘일반 지침’(세부 허용/금지는 유저 프롬프트에서 플래그로 제어)
-        let walkingGeneral =
-            p.walkingConstraints.requireWalkingCuesForWalkWords
-            ? "보행 단어(\(p.walkingConstraints.walkWords.joined(separator: ", ")))는 보행 단서가 충분할 때만 허용."
-            : ""
-
-        let speechGeneral =
-            !p.speechBias.enableWhenPrimaryTagEquals.isEmpty
-            ? "주태그가 \(p.speechBias.enableWhenPrimaryTagEquals.joined(separator: "/"))일 때 음성 비율이 충분하면 대화/회의/인터뷰 축을 선호."
-            : ""
-
-        // shotBlock: TitlePolicy.fewShots → 시스템 프롬프트에 포함
-        let shotBlock = compactFewShots(from: p)
-
-        return """
-            모든 출력은 한국어 한 문장. 따옴표/이모지/해시태그/접두 라벨/줄바꿈 금지.
-            힌트태그로 새로운 맥락을 만들지 말 것(추가 설정/상상 금지).
-
-            제목 작성 지향:
-            \(guardrails)
-
-            \(hardBans)
-
-            \(ratioPrinciples)
-
-            \(walkingGeneral)
-            \(speechGeneral)
-
-            예시(Few-shot, 형식 참고용):
-            \(shotBlock)
-            """
-    }
-
-    /// TitlePolicy.fewShots를 system용 shotBlock 문자열로 압축
-    fileprivate static func compactFewShots(from p: TitlePolicy) -> String {
-        guard !p.fewShots.isEmpty else { return "- (없음)" }
-        // 너무 길어질 수 있으니 6개 정도만(원문에서 이미 적당하면 전체 사용도 무방)
-        let items = p.fewShots.prefix(6).map { fs -> String in
-            // nil 값 제거한 JSON 한 줄
-            var dict: [String: Any] = [:]
-            fs.input.forEach { k, v in if let v { dict[k] = v } }
-            let json =
-                (try? JSONSerialization.data(withJSONObject: dict))
-                .flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-            return "입력: \(json)\n출력: \(fs.output)"
+    /// 번들에서 TitleFewShots.json을 읽어 few-shot 텍스트 블럭으로 변환
+    fileprivate static func loadFewShotBlock() -> String {
+        guard
+            let url = Bundle.main.url(
+                forResource: "TitleFewShots",
+                withExtension: "json"
+            )
+        else {
+            return ""
         }
-        return items.joined(separator: "\n\n")
+
+        do {
+            let data = try Data(contentsOf: url)
+            let bundle = try JSONDecoder().decode(TitleFewShotBundle.self, from: data)
+            guard !bundle.fewShots.isEmpty else {
+                return ""
+            }
+
+            let lines: [String] = bundle.fewShots.map { shot in
+                let jsonString: String
+                if let d = try? JSONSerialization.data(
+                    withJSONObject: shot.input,
+                    options: [.withoutEscapingSlashes]
+                ), let s = String(data: d, encoding: .utf8) {
+                    jsonString = s
+                } else {
+                    jsonString = "{}"
+                }
+
+                return """
+                입력: \(jsonString)
+                출력: \(shot.output)
+                """
+            }
+
+            return lines.joined(separator: "\n\n")
+        } catch {
+            let ns = error as NSError
+            Logger().log(
+                "[AudioProcesser] Failed to load TitleFewShots.json: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
+            )
+            return ""
+        }
     }
 }

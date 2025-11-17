@@ -11,17 +11,21 @@ import FoundationModels
 // MARK: - Public API
 
 enum TitleGuide {
-    @MainActor
     static func generateTitle(
         for recording: Recording,
         using session: LanguageModelSession,
         temperature: Double = 0.35,
-        tagWeights: [String: Int]? = nil,
-        policy: TitlePolicy
+        tagWeights: [String: Int]? = nil
     ) async -> String? {
 
         let ctxObj = TitleContext(recording: recording, weights: tagWeights)
         let ctxJSON = ctxObj.toJSON()
+
+        // 태그 비율이 너무 애매하면 일단 실패 처리
+        let maxRatio = ctxObj.ratios.values.max() ?? 0
+        if maxRatio < 0.20 {
+            return "분석 실패, 상황을 수정해주세요"
+        }
 
         let prompt = buildUserPrompt(
             contextJSON: ctxJSON,
@@ -30,7 +34,7 @@ enum TitleGuide {
         )
 
         var candidates: [String] = []
-        let N = 4
+        let N = 3
         let opts = GenerationOptions(temperature: temperature)
 
         for _ in 0..<N {
@@ -41,60 +45,97 @@ enum TitleGuide {
                 let raw = res.content.trimmingCharacters(
                     in: .whitespacesAndNewlines
                 )
-                guard !raw.isEmpty, !raw.contains("\n") else { continue }
+                guard !raw.isEmpty else { continue }
 
-                let short = shrinkKoreanTitle(raw, limit: 15)
+                let firstLine = raw.components(separatedBy: .newlines).first ?? raw
+
+                let allowLongMusic = allowsLongMusicTitle(
+                    raw: firstLine,
+                    recording: recording,
+                    ctx: ctxObj
+                )
+                let short = allowLongMusic
+                    ? shrinkKoreanTitle(firstLine, limit: 64)
+                    : shrinkKoreanTitle(firstLine, limit: 22)
+
                 if !short.isEmpty {
                     candidates.append(short)
                 }
             } catch {
-                let msg = error.localizedDescription.lowercased()
-                if msg.contains("unsupported language")
-                    || msg.contains("language")
-                {
-                    let fallback = """
-                        한국어 한 문장 제목만 출력하세요. 따옴표/이모지/해시태그 금지.
-                        입력:
-                        \(ctxJSON)
-                        출력: 한국어 한 문장.
-                        """
-                }
+                continue
             }
         }
 
         guard !candidates.isEmpty else { return nil }
 
-        let scored =
-            candidates
-            .map {
-                (
-                    title: $0,
-                    score: score(title: $0, ctx: ctxObj, policy: policy)
-                )
-            }
-            .sorted { $0.score > $1.score }
+        let filtered = candidates.filter { !isIncompatible(title: $0, ctx: ctxObj) }
+        var best = (filtered.first ?? candidates.first)!
 
-        if var best = scored.first?.title {
-            best = shrinkKoreanTitle(best, limit: 15)  // 최종 방어
-
-            if let loc = formatKoreanLocationSuffix(from: recording.location),
-                !loc.isEmpty,
-                !best.contains(loc)
-            {
-                best += ", \(loc)"
-            }
-            return best
+        if
+            let loc = formatKoreanLocationSuffix(from: recording.location),
+            !loc.isEmpty,
+            !best.contains(loc)
+        {
+            best += ", \(loc)"
         }
-        return nil
+
+        return best
     }
 }
 
-// MARK: - Generated schema
+// MARK: - 하드 불일치 필터
 
-@Generable
-struct GuidedTitle {
-    @Guide(description: "한국어 한 문장 제목만 출력. 줄바꿈/따옴표/이모지/해시태그/라벨 금지.")
-    var title: String
+private func isIncompatible(title t: String, ctx: TitleContext) -> Bool {
+    if !ctx.hasVoice &&
+        (t.contains("대화")
+         || t.contains("회의")
+         || t.contains("인터뷰")
+         || t.contains("혼잣말"))
+    {
+        return true
+    }
+    if !ctx.hasWaterAllowed &&
+        (t.contains("파도") || t.contains("바다") || t.contains("해변"))
+    {
+        return true
+    }
+    if !ctx.hasWalkingCues &&
+        (t.contains("산책")
+         || t.contains("걷")
+         || t.contains("발걸음")
+         || t.contains("조깅"))
+    {
+        return true
+    }
+
+    return false
+}
+
+private func allowsLongMusicTitle(
+    raw: String,
+    recording: Recording,
+    ctx: TitleContext
+) -> Bool {
+    let primary = ctx.primaryTag?.lowercased() ?? ""
+    let musicy = [
+        "music", "singing", "instrument", "song", "guitar", "piano",
+        "keyboard", "drum",
+    ]
+    .contains { primary.contains($0) }
+
+    let title = (recording.bgmTitle ?? "").trimmingCharacters(in: .whitespaces)
+    let artist = (recording.bgmArtist ?? "").trimmingCharacters(
+        in: .whitespaces
+    )
+
+    let looksLikeMetaSeparator =
+        raw.contains(",") || raw.contains(" - ") || raw.contains("—")
+
+    let containsMeta =
+        (!title.isEmpty && raw.contains(title))
+        || (!artist.isEmpty && raw.contains(artist))
+
+    return musicy && (containsMeta || looksLikeMetaSeparator)
 }
 
 // MARK: - Context (ko-keys)
@@ -129,6 +170,7 @@ private struct TitleContext: Encodable {
         case speechRatio = "음성비율"
         case hasVoice = "음성유무"
         case hasWaterAllowed = "물/파도허용"
+        // hasWalkingCues는 이번 턴 전용 힌트로만 쓰고, JSON에는 굳이 안 넣어도 됨
     }
 
     init(recording: Recording, weights: [String: Int]?) {
@@ -165,7 +207,6 @@ private struct TitleContext: Encodable {
 
         func ratio(for containsKeys: [String]) -> Double {
             guard !ratiosDict.isEmpty else { return 0 }
-            let keys = ratiosDict.keys.map { $0.lowercased() }
             var r: Double = 0
             for (k, v) in ratiosDict {
                 let lk = k.lowercased()
@@ -180,13 +221,8 @@ private struct TitleContext: Encodable {
         speechRatio = ratio(for: ["speech", "vocal", "singing"])
 
         hasVoice = speechRatio >= 0.25
-
-        hasWaterAllowed =
-            ratio(for: ["waves", "wave", "water", "ocean", "sea"]) >= 0.15
-
-        hasWalkingCues =
-            ratio(for: ["footsteps", "walking", "walk", "jog", "stroll"])
-            >= 0.15
+        hasWaterAllowed = ratio(for: ["waves", "wave", "water", "ocean", "sea"]) >= 0.15
+        hasWalkingCues = ratio(for: ["footsteps", "walking", "walk", "jog", "stroll"]) >= 0.15
     }
 
     func toJSON() -> String {
@@ -196,93 +232,7 @@ private struct TitleContext: Encodable {
     }
 }
 
-// MARK: - Policy Model
-
-struct TitlePolicy: Codable {
-    let policyVersion: String
-    let lang: String
-    let guardrails: [String]
-    let priorityRules: PriorityRules
-    let walkingConstraints: WalkingConstraints
-    let speechBias: SpeechBias
-    let specialCases: [SpecialCase]
-    let fewShots: [FewShot]
-
-    struct PriorityRules: Codable {
-        let usePrimaryTagAsMainConcept: Bool
-        let useSecondaryTagAsHint: Bool
-        let useHintTagsAsMoodOnly: Bool
-        let banNewContextFromHintTags: Bool
-    }
-    struct WalkingConstraints: Codable {
-        let requireWalkingCuesForWalkWords: Bool
-        let walkWords: [String]
-    }
-    struct SpeechBias: Codable { let enableWhenPrimaryTagEquals: [String] }
-
-    struct SpecialCase: Codable {
-        let when: String
-        let title: String?
-        let titleWithName: String?
-        let contains: [String]?
-        let titleIfContains: [String: String]?
-        let patterns: [String]?
-        let titlesByTransport: [String: String]?
-        let fallback: String?
-        let titleTalk: String?
-        let titleAmbient: String?
-        let titleTopic: String?
-        let titleMonologue: String?
-        let mapByDialog: [String: String]?
-        let scheduleKeywords: [String]?
-        let titleSchedule: String?
-        let titleScheduleWithName: String?
-        let titleMeta: String?
-        let titleTitleOnly: String?
-    }
-
-    struct FewShot: Codable {
-        let input: [String: String?]
-        let output: String
-    }
-}
-
-// MARK: - Policy Loader (Bundle 전용 + 최소 fallback)
-
-private enum TitlePolicyLoader {
-    static func load() -> TitlePolicy {
-        guard
-            let url = Bundle.main.url(
-                forResource: "TitlePolicy",
-                withExtension: "json"
-            )
-        else {
-            #if DEBUG
-                assertionFailure(
-                    "[TitlePolicy] TitlePolicy.json not found in bundle. Check filename/target membership/Copy Bundle Resources."
-                )
-            #endif
-            fatalError("[TitlePolicy] TitlePolicy.json not found in bundle.")
-        }
-
-        do {
-            let data = try Data(contentsOf: url)
-            let obj = try JSONDecoder().decode(TitlePolicy.self, from: data)
-            return obj
-        } catch {
-            #if DEBUG
-                assertionFailure(
-                    "[TitlePolicy] Failed to decode TitlePolicy.json: \(error)"
-                )
-            #endif
-            fatalError(
-                "[TitlePolicy] Failed to decode TitlePolicy.json: \(error)"
-            )
-        }
-    }
-}
-
-// MARK: - Prompt Builder (Policy → ICL few-shot)
+// MARK: - Prompt Builder (Lite)
 
 private func buildUserPrompt(
     contextJSON: String,
@@ -290,194 +240,43 @@ private func buildUserPrompt(
     primaryTag: String
 ) -> String {
 
-    let walkLine =
-        hasWalkingCues
-        ? "- 보행 단서 충분: ‘산책/걷기’ 류 표현 사용 가능."
-        : "- 보행 단서 부족: ‘산책/걷기’ 류 표현 사용 금지."
+    let walkHint = hasWalkingCues
+        ? "- 걷는 소리가 충분해서 '산책/걷기/조깅' 같은 표현을 써도 됩니다."
+        : "- 걷는 소리가 거의 없으니 '산책/걷기/조깅' 같은 표현은 쓰지 마세요."
 
-    // primaryTag가 speech 계열이면 ‘이번 턴’ 스피치 힌트만 살짝
-    let maybeSpeechHint =
+    let speechHint =
         primaryTag.lowercased().contains("speech")
-        ? "- 주태그가 speech: 음성 비율이 충분할 때 대화/회의/인터뷰 축 선호."
+        ? "- 주태그가 speech라면, 대화/회의/인터뷰처럼 말소리를 중심으로 표현해 주세요."
         : ""
 
     return """
-        아래는 이번 녹음의 컨텍스트(JSON)입니다.
-        \(contextJSON)
+    너에게 이번 녹음에 대한 정보가 JSON 형식으로 주어진다.
 
-        동적 규칙(이번 턴 전용):
-        \(walkLine)
-        \(maybeSpeechHint)
+    제목 작성 지침:
+    - 자연스럽고 간결한 한국어 한 문장 제목을 한 줄만 작성한다.
+    - 줄바꿈, 따옴표, 이모지, 해시태그, 접두 라벨을 쓰지 않는다.
+    - JSON에 없는 사람 이름/장소/곡명/행사 이름은 새로 만들지 않는다.
 
-        위 컨텍스트를 반영하여 자연스럽고 간결한 한국어 한 문장 제목만 출력하세요.
-        (출력은 한 줄, 형식 규칙은 이미 시스템에 설정되어 있음)
-        """
+    추가 힌트:
+    \(walkHint)
+    \(speechHint)
+
+    아래는 이번 녹음의 세부 정보(JSON)이다. 내용을 참고만 하고, JSON 자체를 반복해서 출력하지 마라.
+
+    CONTEXT_JSON_START
+    \(contextJSON)
+    CONTEXT_JSON_END
+
+    위 정보를 바탕으로 제목 한 문장을 출력해라.
+    """
 }
 
-private func makeFewShots(from policy: TitlePolicy) -> [(
-    inputJSON: String, output: String
-)] {
-    var items: [(String, String)] = []
-
-    // 1) 정책에 명시된 fewShots 우선 (nil 값 제거하여 직렬화)
-    for fs in policy.fewShots {
-        var dict: [String: Any] = [:]
-        for (k, v) in fs.input {
-            if let value = v { dict[k] = value }
-        }
-        if let data = try? JSONSerialization.data(
-            withJSONObject: dict,
-            options: []
-        ),
-            let json = String(data: data, encoding: .utf8)
-        {
-            items.append((json, fs.output))
-        }
-    }
-
-    // 2) specialCases도 간단 대표 예시로 변환 (너무 많아지지 않게 최소화)
-    for sc in policy.specialCases {
-        switch sc.when {
-        case "interview":
-            if let out = sc.title {
-                items.append((#"{"주태그":"speech","전사":"자기소개 부탁드립니다"}"#, out))
-            }
-            if let withName = sc.titleWithName {
-                let o = withName.replacingOccurrences(of: "{name}", with: "민수")
-                items.append((#"{"주태그":"speech","전사":"민수 씨, 인터뷰 시작하겠습니다"}"#, o))
-            }
-        case "waves":
-            if let t = sc.titleTalk {
-                items.append(
-                    (#"{"주태그":"waves","부태그":"speech","전사":"사진 한 장 더 찍자"}"#, t)
-                )
-            }
-            if let a = sc.titleAmbient {
-                items.append((#"{"주태그":"waves"}"#, a))
-            }
-        case "musicDominant":
-            if let meta = sc.titleMeta {
-                let o =
-                    meta
-                    .replacingOccurrences(of: "{bgmTitle}", with: "Lo-fi beats")
-                    .replacingOccurrences(of: "{bgmArtist}", with: "Playlist")
-                items.append(
-                    (
-                        #"{"주태그":"music","부태그":"singing","배경음악제목":"Lo-fi beats","배경음악아티스트":"Playlist"}"#,
-                        o
-                    )
-                )
-            }
-            if let fb = sc.fallback {
-                items.append((#"{"주태그":"music"}"#, fb))
-            }
-        default:
-            break
-        }
-    }
-
-    items.shuffle()
-    return Array(items.prefix(12))
-}
-
-// MARK: - Soft Reranking
-
-private func score(title: String, ctx: TitleContext, policy: TitlePolicy)
-    -> Double
-{
-    var s = 0.0
-    let t = title
-
-    // ratio helper
-    func ratio(for keys: [String]) -> Double {
-        guard !ctx.ratios.isEmpty else { return 0 }
-        var r = 0.0
-        for (k, v) in ctx.ratios {
-            let lk = k.lowercased()
-            if keys.contains(where: { lk.contains($0) }) {
-                r = max(r, v)
-            }
-        }
-        return r
-    }
-
-    let rSpeech = ctx.speechRatio
-    let rWaves = ratio(for: ["waves", "wave", "water", "ocean", "sea"])
-    let rMusic = ratio(for: [
-        "music", "singing", "keyboard", "guitar", "piano", "instrument",
-    ])
-    let rRain = ratio(for: ["rain"])
-    let rSiren = ratio(for: ["siren", "alarm", "beep"])
-
-    // 1) 주태그/비중 기반 가점
-    if let p = ctx.primaryTag?.lowercased() {
-        // speech 계열
-        if t.contains("대화") || t.contains("회의") || t.contains("인터뷰") {
-            // speechRatio에 비례한 가점 (최대 +3.0)
-            s += min(3.0, 4.0 * rSpeech)
-            if p.contains("speech") { s += 0.8 }  // 주태그가 speech면 추가 가점
-        }
-        // music 계열
-        if t.contains("음악") || t.contains("연주") {
-            s += min(2.2, 3.0 * rMusic)
-            if p.contains("music") { s += 0.6 }
-        }
-        // rain / waves / siren
-        if t.contains("빗") { s += min(1.8, 2.5 * rRain) }
-        if t.contains("파도") { s += min(1.8, 2.5 * rWaves) }
-        if t.contains("사이렌") || t.contains("경보") { s += min(1.6, 2.0 * rSiren) }
-    }
-
-    // 2) 금지/불일치 감점
-    if !ctx.hasVoice
-        && (t.contains("대화") || t.contains("회의") || t.contains("인터뷰")
-            || t.contains("혼잣말"))
-    {
-        s -= 5.0
-    }
-    if !ctx.hasWaterAllowed
-        && (t.contains("파도") || t.contains("바다") || t.contains("해변"))
-    {
-        s -= 4.0
-    }
-    // waves 단어인데 비중이 너무 낮음(12% 미만) → 추가 감점
-    if (t.contains("파도") || t.contains("바다") || t.contains("해변"))
-        && rWaves < 0.12
-    {
-        s -= 2.5
-    }
-    // 음악/연주인데 music 비중이 매우 낮음(12% 미만) → 추가 감점
-    if (t.contains("음악") || t.contains("연주")) && rMusic < 0.12 {
-        s -= 2.0
-    }
-    // ‘산책’ 단어인데 보행 단서 없음 → 강력 감점
-    if (t.contains("산책") || t.contains("걷") || t.contains("발걸음")
-        || t.contains("조깅")) && !ctx.hasWalkingCues
-    {
-        s -= 4.0
-    }
-
-    // 3) 형식/길이 보너스
-    if !t.contains("  ") && t.count <= 22 { s += 0.5 }
-    if !["\"", "“", "#", "…"].contains(where: t.contains) { s += 0.3 }
-
-    return s
-}
-
-private func containsPlaceLikeWord(_ t: String) -> Bool {
-    // 아주 간단한 휴리스틱: 흔한 지명/장소 표기
-    let words = [
-        "서울", "부산", "해운대", "강남", "종로", "카페", "역", "광장", "공원", "교회", "연습실",
-        "스튜디오", "해변", "바다",
-    ]
-    return words.contains { t.contains($0) }
-}
+// MARK: - Location suffix
 
 private func formatKoreanLocationSuffix(from location: String?) -> String? {
     guard let raw = location?.trimmingCharacters(in: .whitespacesAndNewlines),
         !raw.isEmpty
     else {
-        logger.log("[LocationDebug] ❌ location이 비어있음")
         return nil
     }
 
@@ -528,7 +327,6 @@ private func formatKoreanLocationSuffix(from location: String?) -> String? {
         return nil
     }
 
-    // '구/군' 혹은 '읍/면/동'을 토큰에서 찾거나 내부 분리로 찾기
     func findAdminUnit(
         in tokens: [String],
         prefer: [String],  // ["구","군"] 우선
@@ -620,7 +418,7 @@ private func formatKoreanLocationSuffix(from location: String?) -> String? {
     }
 
     // 구/군 우선, 없으면 읍/면/동
-    let (unit, kind) = findAdminUnit(
+    let (unit, _) = findAdminUnit(
         in: Array(afterCityRemainderTokens.prefix(4)),
         prefer: districtSuffixes,
         fallback: minorSuffixes
@@ -634,6 +432,8 @@ private func formatKoreanLocationSuffix(from location: String?) -> String? {
         return cityBase
     }
 }
+
+// MARK: - Title shrinker
 
 private func shrinkKoreanTitle(_ s: String, limit: Int = 15) -> String {
     // 앞뒤 공백 제거
