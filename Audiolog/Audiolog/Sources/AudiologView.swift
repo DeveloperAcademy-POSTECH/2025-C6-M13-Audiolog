@@ -52,8 +52,7 @@ struct AudiologView: View {
                 value: "전체 로그"
             ) {
                 ArchiveView(
-                    isRecordCreated: $isRecordCreated,
-                    isSelecting: $isSelecting
+                    isRecordCreated: $isRecordCreated
                 )
             }
             .badge(isRecordCreated ? Text("N") : nil)
