@@ -20,6 +20,8 @@ final class AudioProcesser {
     init() {}
 
     func configureLanguageModelSession() async {
+        guard isLanguageModelAvailable else { return }
+
         let model = SystemLanguageModel.default
 
         switch model.availability {
@@ -33,12 +35,18 @@ final class AudioProcesser {
         }
 
         self.languageModelSession = LanguageModelSession(
-            instructions: "주어지는 오디오 파일의 메타데이터를 정확하게 요약해서 15자 이내의 한국어 제목을 생성한다."
+            instructions: "주어지는 오디오 파일의 메타데이터를 정확하게 요약해서 10자 이내의 한국어 제목을 생성한다."
         )
     }
 
     func generateTitle(recording: Recording) async {
-        guard let languageModelSession else { return }
+        guard let languageModelSession else {
+            logger.log("[AudioProcessor] No Language Model Session.")
+            recording.title = recording.location ?? "새로운 녹음"
+            recording.isTitleGenerated = true
+            logger.log("[AudioProcessor] title applied: \(recording.title)")
+            return
+        }
 
         var prompt = "[metadata] \n"
 
@@ -52,24 +60,21 @@ final class AudioProcesser {
             prompt += "들리는 음악: \(bgmArtist)의 \(bgmTitle) \n"
         }
 
-        if let location = recording.location {
-            prompt += "장소: \(location) \n"
-        }
-
-        if let weather = recording.weather {
-            prompt += "날씨: \(weather) \n"
-        }
-
-        if prompt == "[metadata] \n" {
-            prompt +=
-                "시간: \(recording.createdAt.formatted("a h:mm")) \n"
-        }
-
         if let tags = recording.tags, !tags.isEmpty {
-            prompt += "태그: \(tags.joined(separator: ", "))"
+            prompt += "분류: \(tags.joined(separator: ", "))"
         }
 
         logger.log("[AudioProcessor] Prompt: \(prompt)")
+
+        if prompt == "[metadata] \n" {
+            if let location = recording.location {
+                recording.title = "새로운 녹음, " + location
+            } else {
+                recording.title = "새로운 녹음"
+            }
+            recording.isTitleGenerated = true
+            return
+        }
 
         do {
             let response = try await languageModelSession.respond(to: prompt)
@@ -77,7 +82,11 @@ final class AudioProcesser {
                 in: .whitespacesAndNewlines
             )
 
-            recording.title = title
+            if let location = recording.location {
+                recording.title = "\(title), " + location
+            } else {
+                recording.title = title
+            }
             recording.isTitleGenerated = true
             logger.log("[AudioProcessor] Generated title: \(title)")
         } catch {
