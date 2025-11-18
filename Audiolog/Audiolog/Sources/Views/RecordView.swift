@@ -23,8 +23,8 @@ struct RecordView: View {
     private let locationManager = LocationManager()
     private let weatherManager = WeatherManager()
 
-    @State private var currentLocation = ""
-    @State private var currentWeather = ""
+    @State private var currentLocation: String?
+    @State private var currentWeather: String?
 
     @State private var showToast: Bool = false
     @State private var isBusy: Bool = false
@@ -163,13 +163,14 @@ struct RecordView: View {
             .onAppear {
                 if timelineStart == nil { timelineStart = Date() }
                 locationManager.onLocationUpdate = { location, address in
-
+                    logger.log("location 업데이트 됨")
                     self.currentLocation = address
                     Task {
                         self.currentWeather =
                             try await weatherManager.getWeather(
                                 location: location
                             )
+                        logger.log("currentWeather: \(currentWeather ?? "")")
                     }
                 }
                 audioRecorder.setupCaptureSession()
@@ -217,6 +218,8 @@ struct RecordView: View {
         )
 
         let fileName = audioRecorder.fileName
+        let documentURL = getDocumentURL()
+        let fileURL = documentURL.appendingPathComponent(fileName)
 
         let recording = Recording(
             fileName: fileName,
@@ -225,9 +228,6 @@ struct RecordView: View {
             duration: audioRecorder.timeElapsed
         )
         modelContext.insert(recording)
-
-        let documentURL = getDocumentURL()
-        let fileURL = documentURL.appendingPathComponent(fileName)
 
         do {
             try modelContext.save()
@@ -241,19 +241,6 @@ struct RecordView: View {
             )
             return
         }
-
-        do {
-            _ = try await waitUntilFileReady(fileURL)
-        } catch {
-            let ns = error as NSError
-            logger.log(
-                "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
-            )
-        }
-        await audioProcesser.enqueueProcess(
-            for: recording,
-            modelContext: modelContext
-        )
     }
 
     private func handleRecordButtonTapped() {
@@ -261,14 +248,13 @@ struct RecordView: View {
             Task {
                 let fileName = audioRecorder.fileName
                 let documentURL = getDocumentURL()
-
                 let fileURL = documentURL.appendingPathComponent(fileName)
 
                 await audioRecorder.stopRecording()
                 logger.log(
                     "[RecordView] Stopped recording. fileURL=\(String(describing: fileURL)), elapsed=\(audioRecorder.timeElapsed))"
                 )
-                // showToast 2초간 true 후 false
+
                 await MainActor.run {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         showToast = true
@@ -303,19 +289,14 @@ struct RecordView: View {
                         "[RecordView] Saved Recording to SwiftData. url=\(fileURL.lastPathComponent), duration=\(recording.duration))"
                     )
 
-                    // 엘리안 슈퍼 분석 세트 돌리기
-                    do {
-                        _ = try await waitUntilFileReady(fileURL)
-                    } catch {
-                        let ns = error as NSError
-                        logger.log(
-                            "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
-                        )
-                    }
-
-                    await audioProcesser.enqueueProcess(
-                        for: recording,
-                        modelContext: modelContext
+                    await audioProcesser.classify(recording: recording)
+                    await audioProcesser.transcribe(recording: recording)
+                    await audioProcesser.shazam(recording: recording)
+                    await audioProcesser.generateTitle(recording: recording)
+                    
+                    try modelContext.save()
+                    logger.log(
+                        "[RecordView] Title generated and saved. title: \(recording.title)"
                     )
                 } catch {
                     logger.log(
@@ -355,79 +336,5 @@ struct RecordView: View {
         formatter.locale = Locale(identifier: "ko_KR")
         formatter.dateFormat = "MM월 dd일 HH시 mm분"
         return formatter.string(from: date)
-    }
-
-    private func waitUntilFileReady(
-        _ url: URL,
-        stableWindowMs: Int = 300,  // 사이즈가 이 시간만큼 변하지 않으면 "안정"
-        timeout: TimeInterval = 5.0,  // 최대 대기 시간
-        pollIntervalMs: Int = 100  // 폴링 주기
-    ) async throws -> URL {
-        let fm = FileManager.default
-        let start = Date()
-        var lastSize: UInt64 = 0
-        var lastChange = Date()
-
-        func currentSize() -> UInt64 {
-            guard let attrs = try? fm.attributesOfItem(atPath: url.path),
-                let n = attrs[.size] as? NSNumber
-            else { return 0 }
-            return n.uint64Value
-        }
-
-        while true {
-            let now = Date()
-
-            if now.timeIntervalSince(start) >= timeout {
-                throw APFailure(
-                    "타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))"
-                )
-            }
-
-            guard fm.fileExists(atPath: url.path) else {
-                try? await Task.sleep(
-                    nanoseconds: UInt64(pollIntervalMs) * 1_000_000
-                )
-                continue
-            }
-
-            let size = currentSize()
-            if size != lastSize {
-                lastSize = size
-                lastChange = now
-            }
-
-            let stableForMs = now.timeIntervalSince(lastChange) * 1000
-            let stableEnough = stableForMs >= Double(stableWindowMs)
-
-            if stableEnough && size > 0 {
-                let asset = AVURLAsset(url: url)
-                do {
-                    let tracks = try await asset.load(.tracks)
-                    let hasAudio = tracks.contains { $0.mediaType == .audio }
-                    if hasAudio {
-                        logger.log(
-                            "[waitUntilFileReady] ready url=\(url.lastPathComponent) size=\(size)B"
-                        )
-                        return url
-                    } else {
-                        logger.log(
-                            "[waitUntilFileReady] no audio tracks yet. size=\(size)B"
-                        )
-                    }
-                } catch {
-                    let ns = error as NSError
-                    logger.log(
-                        "[waitUntilFileReady] asset.load(.tracks) error \(ns.domain)(\(ns.code)): \(ns.localizedDescription)"
-                    )
-                }
-            }
-
-            try? await Task.sleep(
-                nanoseconds: UInt64(pollIntervalMs) * 1_000_000
-            )
-        }
-
-        throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
     }
 }
