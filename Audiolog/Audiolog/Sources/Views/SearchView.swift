@@ -25,6 +25,8 @@ struct SearchView: View {
     @FocusState private var isSearchFocused: Bool
 
     @Binding var externalQuery: String
+    @Binding var isIntelligenceEnabled: Bool
+    @State private var isPresenting = false
 
     @AppStorage(RecentSearch.data) private var recentSearch: String = ""
 
