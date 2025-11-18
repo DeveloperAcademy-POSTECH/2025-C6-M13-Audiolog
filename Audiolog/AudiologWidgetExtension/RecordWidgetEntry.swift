@@ -10,6 +10,5 @@ import SwiftUI
 
 struct RecordWidgetEntry: TimelineEntry {
     let date: Date
-    
     let categories: [(String, Int)]
 }
