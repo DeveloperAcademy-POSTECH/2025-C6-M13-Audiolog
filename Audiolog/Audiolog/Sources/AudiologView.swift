@@ -13,6 +13,8 @@ struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
     @State private var audioProcesser = AudioProcesser()
 
+    @State private var generateTitleTask: Task<Void, Never>?
+
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: [
@@ -40,7 +42,6 @@ struct AudiologView: View {
                 value: "녹음"
             ) {
                 RecordView(
-                    audioProcesser: audioProcesser,
                     isRecordCreated: $isRecordCreated,
                     startFromShortcut: $startRecordingFromShortcut
                 )
@@ -80,6 +81,7 @@ struct AudiologView: View {
         .task {
             let emptyThumb = UIImage()
             UISlider.appearance().setThumbImage(emptyThumb, for: .normal)
+            handlePendingRecordings()
         }
         .onChange(of: shortcutBridge.action) { _, newValue in
             handleShortcutAction(newValue)
@@ -87,8 +89,9 @@ struct AudiologView: View {
         .onChange(of: processedCount) {
             updateRecapWidgetSnapshot()
         }
-        .task {
-            await audioProcesser.configureLanguageModelSession()
+        .onChange(of: recordings) {
+            logger.log("recordings changed")
+            handlePendingRecordings()
         }
         .onAppear {
             updateRecapWidgetSnapshot()
@@ -164,5 +167,38 @@ struct AudiologView: View {
         audioPlayer.play()
 
         logger.log("[AudiologView] playCategory(\(tag)) – started")
+    }
+
+    private func handlePendingRecordings() {
+        generateTitleTask?.cancel()
+        generateTitleTask = Task {
+            let pending = recordings.filter { recording in
+                recording.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .isEmpty
+                    || recording.isTitleGenerated == false
+            }
+
+            if pending.isEmpty {
+                logger.log("[AudiologView] 제목 미생성 레코딩 없음")
+            } else {
+                logger.log("[AudiologView] 제목 미생성 레코딩 \(pending.count)개 발견")
+
+                for recording in pending {
+                    if Task.isCancelled { break }
+                    await audioProcesser.configureLanguageModelSession()
+                    await audioProcesser.classify(recording: recording)
+                    await audioProcesser.transcribe(recording: recording)
+                    await audioProcesser.shazam(recording: recording)
+                    await audioProcesser.generateTitle(recording: recording)
+
+                    try? modelContext.save()
+                    logger.log(
+                        "[RecordView] Title generated and saved. title: \(recording.title)"
+                    )
+                }
+            }
+
+            if !Task.isCancelled { generateTitleTask = nil }
+        }
     }
 }
