@@ -110,6 +110,9 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
 
     func startRecording() {
         sessionQueue.async { [self] in
+            if !session.isRunning {
+                session.startRunning()
+            }
             isRecordForCallBacks = true
             DispatchQueue.main.async {
                 self.isRecording = true
@@ -159,8 +162,11 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                     self.assetWriterStereoAudioInput = nil
                     self.assetWriterMetadataInput = nil
 
-                    cont.resume()
-                }
+                    if session.isRunning {
+                        session.stopRunning()
+                    }
+
+                    cont.resume()                }
             }
         }
     }
