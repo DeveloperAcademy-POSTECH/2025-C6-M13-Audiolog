@@ -123,7 +123,8 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
     }
 
     func stopRecording() async {
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+        await withCheckedContinuation {
+            (cont: CheckedContinuation<Void, Never>) in
             sessionQueue.async { [self] in
                 self.isRecordForCallBacks = false
 
@@ -154,7 +155,10 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                     }
 
                     if writer.status != .completed {
-                        print("finishWriting failed:", writer.error ?? "unknown error")
+                        print(
+                            "finishWriting failed:",
+                            writer.error ?? "unknown error"
+                        )
                     }
 
                     self.assetWriter = nil
@@ -166,7 +170,8 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                         session.stopRunning()
                     }
 
-                    cont.resume()                }
+                    cont.resume()
+                }
             }
         }
     }
