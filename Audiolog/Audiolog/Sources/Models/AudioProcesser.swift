@@ -225,34 +225,62 @@ final class AudioProcesser {
     private func identifyMusic(from url: URL) async throws
         -> SHMatchedMediaItem?
     {
-        guard let signature = makeSignature(from: url) else { return nil }
+        let session = SHSession()
+        let maxDuration = TimeInterval(11)
+
+        logger.log("[Shazam] identifyMusic 시작 - url: \(url.absoluteString)")
+        logger.log("[Shazam] catalog.maxQueryDuration = \(maxDuration)s")
+
+        guard let signature = makeSignature(from: url, maxDuration: maxDuration)
+        else {
+            logger.log("[Shazam] signature 생성 실패 (nil)")
+            return nil
+        }
+
+        logger.log(
+            "[Shazam] signature 생성 성공 - duration: \(signature.duration))s"
+        )
 
         return try await withCheckedThrowingContinuation {
             (cont: CheckedContinuation<SHMatchedMediaItem?, Error>) in
-            let session = SHSession()
             let delegate = ShazamDelegate { result in
                 switch result {
                 case .success(let item):
+                    logger.log(
+                        "[Shazam] 매칭 완료 - item: \(item?.title ?? "nil") / \(item?.artist ?? "nil")"
+                    )
                     cont.resume(returning: item)
                 case .failure(let error):
+                    logger.log(
+                        "[Shazam] 매칭 실패 - error: \(String(describing: error))"
+                    )
                     cont.resume(throwing: error)
                 }
             }
+
             session.delegate = delegate
             delegate.retainCycle = (session, delegate)
 
-            logger.log("[AudioProcesser] (4) SHSession.match 시작")
-
+            logger.log("[Shazam] SHSession.match 호출")
             session.match(signature)
         }
     }
 
-    private func makeSignature(from url: URL) -> SHSignature? {
-        guard let file = try? AVAudioFile(forReading: url) else { return nil }
+    private func makeSignature(from url: URL, maxDuration: TimeInterval)
+        -> SHSignature?
+    {
+        logger.log(
+            "[Shazam] makeSignature 시작 - url: \(url.lastPathComponent), maxDuration: \(maxDuration)s"
+        )
+
+        guard let file = try? AVAudioFile(forReading: url) else {
+            logger.log("[Shazam] AVAudioFile 생성 실패")
+            return nil
+        }
 
         let targetFormat = AVAudioFormat(
             commonFormat: .pcmFormatFloat32,
-            sampleRate: 44100,
+            sampleRate: 44_100,
             channels: 1,
             interleaved: false
         )!
@@ -261,6 +289,7 @@ final class AudioProcesser {
         guard
             let converter = AVAudioConverter(from: srcFormat, to: targetFormat)
         else {
+            logger.log("[Shazam] AVAudioConverter 생성 실패")
             return nil
         }
 
@@ -276,20 +305,33 @@ final class AudioProcesser {
                 pcmFormat: targetFormat,
                 frameCapacity: blockFrames
             )
-        else { return nil }
+        else {
+            logger.log("[Shazam] 버퍼 생성 실패")
+            return nil
+        }
 
         file.framePosition = 0
+        logger.log("[Shazam] file.length: \(file.length) frames")
+
+        var accumulatedDuration: TimeInterval = 0
+        var chunkIndex = 0
 
         let audioChunks = sequence(state: ()) { _ -> AVAudioPCMBuffer? in
             do {
                 try file.read(into: srcBuf, frameCount: blockFrames)
             } catch {
+                logger.log("[Shazam] 파일 읽기 에러: \(String(describing: error))")
                 return nil
             }
 
             if srcBuf.frameLength == 0 {
+                logger.log("[Shazam] 더 이상 읽을 프레임 없음 (EOF)")
                 return nil
             }
+
+            logger.log(
+                "[Shazam] [read] chunk \(chunkIndex) - srcBuf.frameLength = \(srcBuf.frameLength)"
+            )
 
             dstBuf.frameLength = 0
             let block: AVAudioConverterInputBlock = { _, outStatus in
@@ -306,24 +348,61 @@ final class AudioProcesser {
                 error: nil,
                 withInputFrom: block
             )
+
+            logger.log(
+                "[Shazam] [convert] chunk \(chunkIndex) - status=\(String(describing: status)), dstBuf.frameLength=\(dstBuf.frameLength)"
+            )
+
             guard status != .error, dstBuf.frameLength > 0 else {
+                if status == .error {
+                    logger.log("[Shazam] 변환 에러 발생")
+                }
                 return nil
             }
 
             let out = dstBuf.copy() as? AVAudioPCMBuffer
             srcBuf.frameLength = 0
+            chunkIndex += 1
             return out
         }
 
+        var appendedChunks = 0
+
         for buf in audioChunks {
+            let seconds = Double(buf.frameLength) / targetFormat.sampleRate
+            let nextAccumulated = accumulatedDuration + seconds
+
+            if accumulatedDuration >= maxDuration {
+                logger.log(
+                    "[Shazam] maxDuration 도달 - 루프 종료 (accumulated=\(accumulatedDuration)s)"
+                )
+                break
+            }
+
+            accumulatedDuration = nextAccumulated
+
             do {
                 try generator.append(buf, at: nil)
+                appendedChunks += 1
             } catch {
+                logger.log(
+                    "[Shazam] Signature append 실패: \(String(describing: error))"
+                )
                 return nil
             }
         }
 
-        return generator.signature()
+        logger.log(
+            """
+            [Shazam] makeSignature 종료 전
+                     appendedChunks=\(appendedChunks)
+                     finalAccumulated=\(accumulatedDuration)s
+            """
+        )
+
+        let signature = generator.signature()
+
+        return signature
     }
 }
 
