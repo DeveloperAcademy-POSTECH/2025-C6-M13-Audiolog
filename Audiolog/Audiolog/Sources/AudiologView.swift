@@ -11,7 +11,7 @@ import WidgetKit
 
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
-    private let audioProcesser = AudioProcesser()
+    @State private var audioProcesser = AudioProcesser()
 
     @Environment(\.modelContext) private var modelContext
 
@@ -80,56 +80,19 @@ struct AudiologView: View {
         .task {
             let emptyThumb = UIImage()
             UISlider.appearance().setThumbImage(emptyThumb, for: .normal)
-            await reprocessPendingTitlesIfNeeded()
         }
         .onChange(of: shortcutBridge.action) { _, newValue in
             handleShortcutAction(newValue)
         }
-        .onChange(of: processedCount) { _ in
+        .onChange(of: processedCount) {
             updateRecapWidgetSnapshot()
+        }
+        .task {
+            await audioProcesser.configureLanguageModelSession()
         }
         .onAppear {
             updateRecapWidgetSnapshot()
         }
-    }
-
-    @MainActor
-    private func reprocessPendingTitlesIfNeeded() async {
-        guard !isReprocessingPending else { return }
-        let targets = pendingRecordings()
-        guard !targets.isEmpty else { return }
-
-        isReprocessingPending = true
-        defer { isReprocessingPending = false }
-
-        logger.log(
-            "[AudiologView] Reprocess pending titles. count=\(targets.count)"
-        )
-
-        let fileManager = FileManager.default
-        let documentURL = getDocumentURL()
-
-        for target in targets {
-            let fileName = target.fileName
-            let fileURL = documentURL.appendingPathComponent(fileName)
-
-            guard fileManager.fileExists(atPath: fileURL.path) else {
-                logger.log(
-                    "[AudiologView] Skip reprocess (file missing): \(fileURL)"
-                )
-                continue
-            }
-            let processor = AudioProcesser()
-            await processor.enqueueProcess(
-                for: target,
-                modelContext: modelContext
-            )
-        }
-        logger.log("[AudiologView] Reprocess done.")
-    }
-
-    private func pendingRecordings() -> [Recording] {
-        recordings.filter { !$0.isTitleGenerated || $0.title.isEmpty }
     }
 
     private func handleShortcutAction(_ action: ShortcutBridge.Action) {
@@ -202,5 +165,4 @@ struct AudiologView: View {
 
         logger.log("[AudiologView] playCategory(\(tag)) – started")
     }
-
 }
