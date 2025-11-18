@@ -17,6 +17,8 @@ struct ArchiveView: View {
     ]) private var recordings: [Recording]
 
     @Binding var isRecordCreated: Bool
+    @Binding var isIntelligenceEnabled: Bool
+    @State private var isPresenting = false
 
     @State private var editingId: UUID?
     @State private var tempTitle: String = ""
@@ -261,7 +263,7 @@ struct ArchiveView: View {
                 .constant(isSelecting ? .active : .inactive)
             )
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem {
                     Button(isSelecting ? "취소" : "선택") {
                         withAnimation {
                             isSelecting.toggle()
@@ -276,6 +278,19 @@ struct ArchiveView: View {
                         }
                     }
                 }
+
+                ToolbarSpacer(.fixed)
+
+                ToolbarItem {
+                    Button {
+                        isPresenting = true
+                    } label: {
+                        Image("IntelligenceLogo")
+                    }
+                }
+            }
+            .sheet(isPresented: $isPresenting) {
+                AISuggestionView()
             }
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {
