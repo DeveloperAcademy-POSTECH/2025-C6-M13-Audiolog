@@ -77,7 +77,6 @@ struct ArchiveView: View {
                                                 .onAppear {
                                                     isEditingFocused = true
                                                 }
-                                                .lineLimit(1)
                                             } else {
                                                 Text(
                                                     item.isTitleGenerated
@@ -90,13 +89,11 @@ struct ArchiveView: View {
                                                     item.isTitleGenerated
                                                         ? .lbl1 : .lbl3
                                                 )
-                                                .lineLimit(1)
                                             }
 
                                             Text(
                                                 "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) · \(item.formattedDuration)"
                                             )
-                                            .lineLimit(1)
                                             .font(.subheadline)
                                             .foregroundStyle(.lbl2)
                                             .accessibilityLabel(

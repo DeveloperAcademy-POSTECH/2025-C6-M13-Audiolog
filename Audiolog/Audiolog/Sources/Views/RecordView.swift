@@ -12,7 +12,6 @@ import SwiftUI
 
 struct RecordView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
-    let audioProcesser: AudioProcesser
 
     @State private var audioRecorder = AudioRecorder()
     @State private var timelineStart: Date?
@@ -287,16 +286,6 @@ struct RecordView: View {
                     await MainActor.run { isRecordCreated = true }
                     logger.log(
                         "[RecordView] Saved Recording to SwiftData. url=\(fileURL.lastPathComponent), duration=\(recording.duration))"
-                    )
-
-                    await audioProcesser.classify(recording: recording)
-                    await audioProcesser.transcribe(recording: recording)
-                    await audioProcesser.shazam(recording: recording)
-                    await audioProcesser.generateTitle(recording: recording)
-                    
-                    try modelContext.save()
-                    logger.log(
-                        "[RecordView] Title generated and saved. title: \(recording.title)"
                     )
                 } catch {
                     logger.log(
