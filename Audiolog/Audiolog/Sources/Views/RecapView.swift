@@ -70,8 +70,8 @@ struct RecapView: View {
                     }
 
                     ForEach(recordingCollections, id: \.self) { tag in
-                        let thumbnailName =
-                            "Thumbnail\(((abs(tag.hashValue) % 7) + 1))"
+                        let asciiSum = tag.unicodeScalars.map { Int($0.value) }.reduce(0, +)
+                        let thumbnailName = "Thumbnail\(((asciiSum % 7) + 1))"
                         NavigationLink {
                             let filteredRecordings = recordings.filter {
                                 recording in
