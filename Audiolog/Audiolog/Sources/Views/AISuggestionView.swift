@@ -18,6 +18,7 @@ struct AISuggestionView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 84)
+                    .opacity(0.9)
                 Spacer()
             }
             .frame(height: 100)
