@@ -10,8 +10,6 @@ import SwiftUI
 
 struct RecapView: View {
     @Query private var recordings: [Recording]
-    @Binding var isIntelligenceEnabled: Bool
-    @State private var isPresenting = false
 
     private var recordingCollections: [String] {
         var tagToRecordingIDs: [String: Set<ObjectIdentifier>] = [:]
