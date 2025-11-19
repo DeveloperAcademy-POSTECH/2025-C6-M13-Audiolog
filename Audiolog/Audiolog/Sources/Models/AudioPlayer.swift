@@ -493,11 +493,14 @@ class AudioPlayer: NSObject {
     private func updateNowPlayingInfo(current: Recording) {
         var nowPlayingInfo = [String: Any]()
         nowPlayingInfo[MPMediaItemPropertyTitle] = current.title
-        //        if let albumCoverPage = UIImage(named: String(substring) + "_icon") {
-        //            nowPlayingInfo[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: albumCoverPage.size, requestHandler: { size in
-        //                return albumCoverPage
-        //            })
-        //        }
+        if let albumCoverPage = UIImage(named: "AppIcon") {
+            nowPlayingInfo[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(
+                boundsSize: albumCoverPage.size,
+                requestHandler: { _ in
+                    return albumCoverPage
+                }
+            )
+        }
         nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = audioLengthSeconds
         nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] =
             currentPlaybackTime
