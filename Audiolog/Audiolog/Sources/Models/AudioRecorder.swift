@@ -102,10 +102,6 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                 queue: self.sessionQueue
             )
         }
-
-        sessionQueue.async {
-            self.session.startRunning()
-        }
     }
 
     func startRecording() {
