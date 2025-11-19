@@ -65,9 +65,7 @@ struct AudiologView: View {
                 systemImage: "rectangle.grid.2x2.fill",
                 value: "추천 로그"
             ) {
-                RecapView(
-                    isIntelligenceEnabled: $isIntelligenceEnabled
-                )
+                RecapView()
             }
 
             Tab(
