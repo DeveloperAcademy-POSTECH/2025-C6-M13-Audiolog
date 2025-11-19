@@ -1,498 +1,177 @@
-//
-//  AudioPlayer.swift
-//  Audiolog
-//
-//  Created by Sean Cho on 10/29/25.
-//
-
 import AVFoundation
+import Foundation
 import MediaPlayer
-import SwiftUI
 
-// swiftlint:disable:next type_body_length
 @Observable
 @MainActor
-class AudioPlayer: NSObject {
+class AudioPlayer: NSObject, AVAudioPlayerDelegate {
+    private var audioPlayer: AVAudioPlayer?
+    private var playbackTimer: Timer?
+
+    private(set) var isPlaying: Bool = false
+
     var current: Recording?
     var playlist: [Recording] = []
     var currentIndex: Int?
 
-    var isPlaying = false
-    var isPlayerReady = false
-    var playbackRateIndex: Int = 0 {
-        didSet {
-            updateForRateSelection()
-        }
-    }
-    var playerProgress: Double = 0
-    var currentPlaybackTime: Double = 0
-    var audioLengthSeconds: Double = 0
-
-    let allPlaybackRates: [PlaybackValue] = [
-        .init(value: 1, label: "1.0x"),
-        .init(value: 1.5, label: "1.5x"),
-        .init(value: 2, label: "2.0x"),
-    ]
-
-    private let engine = AVAudioEngine()
-    private let player = AVAudioPlayerNode()
-    private let timeEffect = AVAudioUnitTimePitch()
-    private var isTapInstalled = false
-    private var isEngineConfigured = false
-
-    private var displayLink: CADisplayLink?
-
-    private var needsFileScheduled = true
-
-    private var audioFile: AVAudioFile?
-    private var audioSampleRate: Double = 0
-
-    private var seekFrame: AVAudioFramePosition = 0
-    private var currentPosition: AVAudioFramePosition = 0
-    private var audioLengthSamples: AVAudioFramePosition = 0
-
-    private var currentFrame: AVAudioFramePosition {
-        guard
-            let lastRenderTime = player.lastRenderTime,
-            let playerTime = player.playerTime(forNodeTime: lastRenderTime)
-        else {
-            return 0
-        }
-
-        return playerTime.sampleTime
-    }
+    private(set) var currentPlaybackTime: Double = 0
+    private(set) var currentPlaybackRate: Float = 0
+    private(set) var currentDuration: Double = 0
 
     override init() {
         super.init()
-        setupAudioSession()
-        setupDisplayLink()
         remoteCommandCenterSetting()
+        setupAudioSession()
+    }
+
+    func setPlaylist(_ recordings: [Recording]) {
+        playlist = recordings
+        currentIndex = recordings.isEmpty ? nil : 0
+    }
+
+    func load(_ recording: Recording) {
+        let fileName = recording.fileName
+        let documentURL = getDocumentURL()
+        let fileURL = documentURL.appendingPathComponent(fileName)
+
+        do {
+            audioPlayer = try AVAudioPlayer(contentsOf: fileURL)
+            current = recording
+
+            if let index = playlist.firstIndex(where: { $0 == recording }) {
+                currentIndex = index
+            } else {
+                currentIndex = nil
+            }
+
+            if let player = audioPlayer {
+                currentDuration = player.duration
+                currentPlaybackTime = player.currentTime
+                currentPlaybackRate = player.rate
+            }
+        } catch {
+            logger.log("[AudioPlayer] AVAudioPlayer 생성 실패함")
+        }
     }
 
     func play() {
-        displayLink?.isPaused = false
-        connectVolumeTap()
+        audioPlayer?.delegate = self
+        audioPlayer?.play()
+        startPlaybackTimer()
+        isPlaying = true
 
-        if needsFileScheduled {
-            logger.log(
-                "needsFileScheduled == true, calling scheduleAudioFile()"
-            )
-            scheduleAudioFile()
-        } else {
-            logger.log(
-                "needsFileScheduled == false, NOT calling scheduleAudioFile()"
-            )
-        }
-
-        player.play()
-        logger.log(
-            "player.play() called. player.isPlaying(after) = \(player.isPlaying)"
-        )
-
-        isPlaying = player.isPlaying
+        updateNowPlayingInfo()
     }
 
     func pause() {
-        logger.log("player.isPlaying is true -> will pause()")
-        displayLink?.isPaused = true
-        disconnectVolumeTap()
+        audioPlayer?.pause()
+        stopPlaybackTimer()
+        isPlaying = false
 
-        player.pause()
-        logger.log(
-            "player.pause() called. player.isPlaying(after) = \(player.isPlaying)"
-        )
-
-        isPlaying = player.isPlaying
+        updateNowPlayingInfo()
     }
 
     func togglePlayPause() {
-        if player.isPlaying {
+        if isPlaying {
             pause()
         } else {
             play()
         }
     }
 
-    func skip(forwards: Bool) {
-        let timeToSeek: Double
+    func seek(to time: Double) {
+        guard let player = audioPlayer else { return }
 
-        if forwards {
-            timeToSeek = 5
+        if time > currentDuration {
+            player.currentTime = currentDuration
+        } else if time < 0 {
+            player.currentTime = 0
         } else {
-            timeToSeek = -5
+            player.currentTime = time
         }
 
-        seek(to: timeToSeek, isSkip: true)
+        currentPlaybackTime = player.currentTime
+        updateNowPlayingInfo()
     }
 
-    func setPlaylist(_ items: [Recording]) {
-        playlist = items
-        currentIndex = items.isEmpty ? nil : 0
-    }
-
-    func playFromStart() {
-        guard !playlist.isEmpty else { return }
-        playItem(at: 0)
-    }
-
-    func playNextInPlaylist() {
-        guard !playlist.isEmpty else { return }
-
-        if let index = currentIndex {
-            let nextIndex = index + 1
-            guard playlist.indices.contains(nextIndex) else { return }
-            playItem(at: nextIndex, playNow: false)
+    func skip(isForward: Bool) {
+        if isForward {
+            seek(to: currentPlaybackTime + 5)
         } else {
-            playFromStart()
+            seek(to: currentPlaybackTime - 5)
         }
     }
 
     func playPreviousInPlaylist() {
         guard !playlist.isEmpty else { return }
+        let wasPlaying = isPlaying
+
+        if currentPlaybackTime > 3 {
+            seek(to: 0)
+            return
+        }
 
         if let index = currentIndex {
-            let previousIndex = index - 1
-            guard playlist.indices.contains(previousIndex) else { return }
-            playItem(at: previousIndex, playNow: false)
-        } else {
-            playFromStart()
+            let previous = index - 1
+            guard playlist.indices.contains(previous) else { return }
+            load(playlist[previous])
+            if wasPlaying { play() }
         }
+
+        updateNowPlayingInfo()
     }
 
-    func load(_ recording: Recording) {
-        logger.log("load() called")
+    func playNextInPlaylist() {
+        guard !playlist.isEmpty else { return }
+        let wasPlaying = isPlaying
 
-        resetForNewFile()
-
-        let fileName = recording.fileName
-        let documentURL = getDocumentURL()
-
-        let fileURL = documentURL.appendingPathComponent(fileName)
-
-        logger.log("Found mp4 at URL: \(fileURL)")
-
-        do {
-            let file = try AVAudioFile(forReading: fileURL)
-            let format = file.processingFormat
-
-            logger.log("AVAudioFile created")
-            logger.log("sampleRate: \(format.sampleRate)")
-            logger.log("channelCount: \(format.channelCount)")
-            logger.log("length (frames): \(file.length)")
-
-            audioLengthSamples = file.length
-            audioSampleRate = format.sampleRate
-            audioLengthSeconds = Double(audioLengthSamples) / audioSampleRate
-
-            logger.log("audioSampleRate set to \(audioSampleRate)")
-            logger.log("audioLengthSamples set to \(audioLengthSamples)")
-            logger.log("audioLengthSeconds computed as \(audioLengthSeconds)")
-
-            audioFile = file
-
-            configureEngine(with: format)
-
-            current = recording
-
-            if let idx = playlist.firstIndex(where: { $0.id == recording.id }) {
-                currentIndex = idx
-            } else {
-                currentIndex = nil
-            }
-        } catch {
-            logger.log("Error reading the audio file: \(error)")
-            logger.log("localizedDescription: \(error.localizedDescription)")
+        if let index = currentIndex {
+            let nextIndex = index + 1
+            guard playlist.indices.contains(nextIndex) else { return }
+            load(playlist[nextIndex])
+            if wasPlaying { play() }
         }
+
+        updateNowPlayingInfo()
     }
 
-    private func playItem(at index: Int, playNow: Bool = true) {
-        guard playlist.indices.contains(index) else { return }
+    func currentItemDeleted() {
+        audioPlayer?.stop()
+        stopPlaybackTimer()
+        isPlaying = false
 
-        let item = playlist[index]
-        currentIndex = index
-        load(item)
-        updateNowPlayingInfo(current: item)
+        current = nil
+        playlist = []
+        currentIndex = nil
+        currentDuration = 0
+        currentPlaybackTime = 0
+        currentPlaybackRate = 0
 
-        if playNow || isPlaying {
-            play()
-        }
+        updateNowPlayingInfo()
     }
 
-    private func configureEngine(with format: AVAudioFormat) {
-        logger.log("configureEngine() called")
-        logger.log(
-            "format.sampleRate = \(format.sampleRate), channels = \(format.channelCount)"
-        )
-
-        if isEngineConfigured {
-            logger.log("engine already configured, scheduling new file only")
-            scheduleAudioFile()
-            isPlayerReady = true
-            return
-        }
-
-        engine.attach(player)
-        engine.attach(timeEffect)
-        logger.log("Attached player and timeEffect to engine")
-
-        engine.connect(
-            player,
-            to: timeEffect,
-            format: format
-        )
-        engine.connect(
-            timeEffect,
-            to: engine.mainMixerNode,
-            format: format
-        )
-
-        logger.log("Connected nodes: player -> timeEffect -> mainMixerNode")
-
-        engine.prepare()
-        logger.log("engine.prepare() called, starting engine...")
-
-        do {
-            try engine.start()
-            logger.log("engine.start() succeeded")
-
-            scheduleAudioFile()
-            isPlayerReady = true
-            isEngineConfigured = true
-            logger.log(
-                "scheduleAudioFile() called and isPlayerReady set to true"
-            )
-        } catch {
-            logger.log("Error starting the engine/player: \(error)")
-            logger.log("localizedDescription: \(error.localizedDescription)")
-        }
-    }
-
-    private func scheduleAudioFile() {
-        logger.log(
-            "scheduleAudioFile() called. needsFileScheduled = \(needsFileScheduled)"
-        )
-
-        guard let file = audioFile else {
-            logger.log("scheduleAudioFile(): audioFile is nil")
-            return
-        }
-
-        guard needsFileScheduled else {
-            logger.log(
-                "scheduleAudioFile(): needsFileScheduled is false, skipping scheduling"
-            )
-            return
-        }
-
-        needsFileScheduled = false
-        seekFrame = 0
-
-        logger.log(
-            "Scheduling file from frame 0. audioLengthSamples = \(audioLengthSamples)"
-        )
-
-        player.scheduleFile(file, at: nil) { [weak self] in
-            guard let self else { return }
-            logger.log(
-                "scheduleFile completion handler fired (playback completed). Setting needsFileScheduled = true"
-            )
-            Task { @MainActor in
-                self.needsFileScheduled = true
-            }
-        }
-    }
-
-    // MARK: Audio adjustments
-
-    func seek(to time: Double, isSkip: Bool = false) {
-        logger.log("seek(to: \(time)) called")
-
-        guard let audioFile = audioFile else {
-            logger.log("seek aborted: audioFile is nil")
-            return
-        }
-
-        logger.log(
-            "currentPosition(before) = \(currentPosition), seekFrame(before) = \(seekFrame)"
-        )
-        logger.log("audioSampleRate = \(audioSampleRate)")
-
-        let offset = AVAudioFramePosition(time * audioSampleRate)
-        logger.log("computed offset (frames) = \(offset)")
-
-        seekFrame = isSkip ? currentPosition + offset : offset
-        seekFrame = max(seekFrame, 0)
-        seekFrame = min(seekFrame, audioLengthSamples)
-        currentPosition = seekFrame
-
-        logger.log(
-            "clamped seekFrame = \(seekFrame), new currentPosition = \(currentPosition) / \(audioLengthSamples)"
-        )
-
-        let wasPlaying = player.isPlaying
-        logger.log("wasPlaying(before stop) = \(wasPlaying)")
-        player.stop()
-        logger.log("player.stop() called")
-
-        if currentPosition < audioLengthSamples {
-            updateDisplay()
-            needsFileScheduled = false
-
-            let frameCount = AVAudioFrameCount(audioLengthSamples - seekFrame)
-            logger.log(
-                "scheduling segment from frame \(seekFrame), frameCount = \(frameCount)"
-            )
-
-            player.scheduleSegment(
-                audioFile,
-                startingFrame: seekFrame,
-                frameCount: frameCount,
-                at: nil
-            ) {
-                logger.log(
-                    "scheduleSegment completion handler fired (segment finished). Setting needsFileScheduled = true"
-                )
-                Task { @MainActor in
-                    self.needsFileScheduled = true
-                }
-            }
-
-            if wasPlaying {
-                player.play()
-            }
-        }
-    }
-
-    private func updateForRateSelection() {
-        let selectedRate = allPlaybackRates[playbackRateIndex]
-        timeEffect.rate = Float(selectedRate.value)
-    }
-
-    private func connectVolumeTap() {
-        logger.log("connectVolumeTap() called")
-
-        guard !isTapInstalled else {
-            logger.log("connectVolumeTap() skipped: tap already installed")
-            return
-        }
-
-        let format = engine.mainMixerNode.outputFormat(forBus: 0)
-        logger.log(
-            "mainMixerNode outputFormat: sampleRate = \(format.sampleRate), channels = \(format.channelCount)"
-        )
-
-        engine.mainMixerNode.installTap(
-            onBus: 0,
-            bufferSize: 1024,
-            format: format
-        ) { _, _ in
-            // TODO: haptic추가 이쯤에서 하려나..
-        }
-
-        isTapInstalled = true
-    }
-
-    private func disconnectVolumeTap() {
-        logger.log("disconnectVolumeTap() called")
-
-        guard isTapInstalled else {
-            logger.log("disconnectVolumeTap() skipped: no tap installed")
-            return
-        }
-
-        engine.mainMixerNode.removeTap(onBus: 0)
-        isTapInstalled = false
-    }
-
-    // MARK: Display updates
-    private func setupDisplayLink() {
-        logger.log("setupDisplayLink() called")
-        displayLink = CADisplayLink(
-            target: self,
-            selector: #selector(updateDisplay)
-        )
-        displayLink?.add(to: .current, forMode: .default)
-        displayLink?.isPaused = true
-        logger.log("displayLink created and initially paused")
-    }
-
-    @objc private func updateDisplay() {
-        let oldPosition = currentPosition
-        currentPosition = currentFrame + seekFrame
-        currentPosition = max(currentPosition, 0)
-        currentPosition = min(currentPosition, audioLengthSamples)
-
-        if oldPosition != currentPosition {
-            //            logger.log(
-            //                "updateDisplay() currentPosition = \(currentPosition) / \(audioLengthSamples), seekFrame = \(seekFrame)"
-            //            )
-        }
-
-        if currentPosition >= audioLengthSamples {
-            logger.log("Reached end of audio. Stopping player.")
-            player.stop()
-            displayLink?.isPaused = true
-            disconnectVolumeTap()
-
-            if let index = currentIndex {
-                let nextIndex = index + 1
-                if playlist.indices.contains(nextIndex) {
-                    logger.log(
-                        "Moving to next item in playlist at index \(nextIndex)"
-                    )
-                    playItem(at: nextIndex)
-                    return
-                }
-            }
-
-            seekFrame = 0
-            currentPosition = 0
-            isPlaying = false
-        }
-
-        playerProgress = Double(currentPosition) / Double(audioLengthSamples)
-
-        let time = Double(currentPosition) / audioSampleRate
-        currentPlaybackTime = time
-
-        if let current {
-            updateNowPlayingInfo(current: current)
-        }
+    func audioPlayerDidFinishPlaying(
+        _ player: AVAudioPlayer,
+        successfully flag: Bool
+    ) {
+        stopPlaybackTimer()
+        isPlaying = false
+        currentPlaybackRate = 0
+        updateNowPlayingInfo()
     }
 
     private func setupAudioSession() {
-        let session = AVAudioSession.sharedInstance()
-        do {
-            try session.setCategory(
-                .playback,
-                mode: .moviePlayback,
-                options: [.allowBluetoothHFP]
-            )
-            try session.setActive(true)
-            logger.log(
-                "AVAudioSession configured: category=\(session.category.rawValue), outputVolume=\(session.outputVolume)"
-            )
-        } catch {
-            logger.log("AVAudioSession error: \(error)")
-        }
+        let audioSession = AVAudioSession.sharedInstance()
+        try? audioSession.setCategory(.playback)
+        try? audioSession.setActive(true)
     }
 
-    private func resetForNewFile() {
-        displayLink?.isPaused = true
-        disconnectVolumeTap()
-        player.stop()
+    private func updateNowPlayingInfo() {
+        guard let current else { return }
 
-        seekFrame = 0
-        currentPosition = 0
-        playerProgress = 0
-        currentPlaybackTime = 0
-
-        needsFileScheduled = true
-    }
-
-    private func updateNowPlayingInfo(current: Recording) {
         var nowPlayingInfo = [String: Any]()
         nowPlayingInfo[MPMediaItemPropertyTitle] = current.title
+
         if let albumCoverPage = UIImage(named: "AppIcon") {
             nowPlayingInfo[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(
                 boundsSize: albumCoverPage.size,
@@ -501,11 +180,37 @@ class AudioPlayer: NSObject {
                 }
             )
         }
-        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = audioLengthSeconds
+
+        nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = current.duration
         nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] =
             currentPlaybackTime
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+    }
+
+    private func startPlaybackTimer() {
+        stopPlaybackTimer()
+
+        playbackTimer = Timer.scheduledTimer(
+            withTimeInterval: 0.1,
+            repeats: true
+        ) { [weak self] _ in
+            guard let self, let player = self.audioPlayer else {
+                self?.stopPlaybackTimer()
+                return
+            }
+
+            self.currentPlaybackTime = player.currentTime
+            self.currentPlaybackRate = player.rate
+            self.currentDuration = player.duration
+        }
+
+        RunLoop.main.add(playbackTimer!, forMode: .common)
+    }
+
+    private func stopPlaybackTimer() {
+        playbackTimer?.invalidate()
+        playbackTimer = nil
     }
 
     private func remoteCommandCenterSetting() {
@@ -548,14 +253,5 @@ class AudioPlayer: NSObject {
             self.seek(to: positionEvent.positionTime)
             return .success
         }
-    }
-}
-
-struct PlaybackValue: Identifiable {
-    let value: Double
-    let label: String
-
-    var id: String {
-        return "\(label)-\(value)"
     }
 }

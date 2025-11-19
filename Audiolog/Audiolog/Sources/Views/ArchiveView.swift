@@ -348,7 +348,12 @@ struct ArchiveView: View {
 
     private func delete(_ items: [Recording]) {
         guard !items.isEmpty else { return }
-        for it in items { modelContext.delete(it) }
+        for item in items {
+            if item == audioPlayer.current {
+                audioPlayer.currentItemDeleted()
+            }
+            modelContext.delete(item)
+        }
         do { try modelContext.save() } catch {
             logger.log(
                 "[ArchiveView] delete save failed: \(String(describing: error))"
@@ -356,7 +361,9 @@ struct ArchiveView: View {
         }
     }
 
-    private func deleteOne(_ item: Recording) { delete([item]) }
+    private func deleteOne(_ item: Recording) {
+        withAnimation { delete([item]) }
+    }
 
     private func deleteSelected() {
         let targets = recordings.filter {
