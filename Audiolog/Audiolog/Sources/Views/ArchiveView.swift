@@ -19,6 +19,7 @@ struct ArchiveView: View {
     @Binding var isRecordCreated: Bool
     @Binding var isIntelligenceEnabled: Bool
     @State private var isPresenting = false
+    @State private var showSuggestion = true
 
     @State private var editingId: UUID?
     @State private var tempTitle: String = ""
@@ -59,6 +60,40 @@ struct ArchiveView: View {
                         Spacer()
                     } else {
                         List(selection: $selection) {
+                            if showSuggestion {
+                                HStack(spacing: 10) {
+                                    Image("Intelligence")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 30)
+
+                                    Text("Audiolog를 100% 활용해 보세요.")
+                                        .font(.callout)
+                                        .foregroundStyle(.lbl1)
+
+                                    Spacer()
+
+                                    Button {
+                                        showSuggestion = false
+                                    } label: {
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(.lbl2)
+                                            .padding(8)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .frame(height: 60)
+                                .padding(.horizontal, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(.listStroke)
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    isPresenting = true
+                                }
+                            }
                             ForEach(recordings) { item in
                                 HStack {
                                     HStack {
@@ -275,19 +310,9 @@ struct ArchiveView: View {
                         }
                     }
                 }
-
-                ToolbarSpacer(.fixed)
-
-                ToolbarItem {
-                    Button {
-                        isPresenting = true
-                    } label: {
-                        Image("IntelligenceLogo")
-                    }
-                }
             }
             .sheet(isPresented: $isPresenting) {
-                AISuggestionView()
+                AISuggestionView(isPresented: $isPresenting)
             }
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {

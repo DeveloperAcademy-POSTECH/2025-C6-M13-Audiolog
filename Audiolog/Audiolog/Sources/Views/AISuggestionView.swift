@@ -8,9 +8,10 @@
 import SwiftUI
 
 struct AISuggestionView: View {
+    @Environment(\.openURL) var openURL
+    @Binding var isPresented: Bool
+    
     var body: some View {
-        @Environment(\.openURL) var openURL
-
         VStack(alignment: .leading, spacing: 40) {
             HStack {
                 Spacer()
@@ -80,7 +81,7 @@ struct AISuggestionView: View {
         .cornerRadius(1000)
 
         Button {
-
+            isPresented = false
         } label: {
             Text("지금 안 함")
                 .fontWeight(.semibold)
@@ -93,8 +94,4 @@ struct AISuggestionView: View {
         Spacer()
 
     }
-}
-
-#Preview {
-    AISuggestionView()
 }

@@ -27,6 +27,7 @@ struct SearchView: View {
     @Binding var externalQuery: String
     @Binding var isIntelligenceEnabled: Bool
     @State private var isPresenting = false
+    @State private var showSuggestion = true
 
     @AppStorage(RecentSearch.data) private var recentSearch: String = ""
 
@@ -48,7 +49,41 @@ struct SearchView: View {
             VStack {
                 if searchText.isEmpty {
                     Title(text: "최근 검색한 항목")
+                    if showSuggestion {
+                        HStack(spacing: 20) {
+                            Image("Intelligence")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 30)
 
+                            Text("Audiolog를 100% 활용해 보세요.")
+                                .font(.callout)
+                                .foregroundStyle(.lbl1)
+
+                            Spacer()
+
+                            Button {
+                                showSuggestion = false
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.lbl2)
+                                    .padding(8)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 20)
+                        .frame(height: 60)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(.listStroke)
+                        )
+                        .padding(.horizontal, 20)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            isPresenting = true
+                        }
+                    }
                     VStack {
                         if recentItems.isEmpty {
                             Text("최근 검색한 항목이 없습니다.")
