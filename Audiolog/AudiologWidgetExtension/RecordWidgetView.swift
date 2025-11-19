@@ -64,7 +64,7 @@ struct RecordWidgetView: View {
             .buttonStyle(.plain)
             Text("소리를 담아보세요")
                 .font(.system(size: 15).bold())
-                .foregroundStyle(.tapbar)
+                .foregroundStyle(.accent)
                 .padding(.top, 22)
             Text("Audiolog")
                 .font(.footnote.weight(.semibold))
@@ -78,11 +78,16 @@ struct RecordWidgetView: View {
         VStack(alignment: .leading, spacing: 15) {
             Text("추억을 회상해보세요")
                 .font(.system(size: 15).bold())
-                .foregroundStyle(.tapbar)
+                .foregroundStyle(.accent)
             VStack(spacing: 10) {
                 ForEach(entry.categories.prefix(2), id: \.0) { title, count in
                     HStack {
-                        //Image로 변경
+                        let asciiSum = title.unicodeScalars.map { Int($0.value) }.reduce(0, +)
+                        let thumbnailName = "Thumbnail\(((asciiSum % 7) + 1))"
+                        Image(thumbnailName)
+                            .resizable()
+                            .cornerRadius(10)
+                            .frame(width: 40, height: 40)
                         RoundedRectangle(cornerRadius: 14)
                             .fill(Color.blue.opacity(0.2))
                             .frame(width: 40, height: 40)
@@ -119,7 +124,7 @@ struct RecordWidgetView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("오늘의 소리를\n담아보세요")
                         .font(.title2.bold())
-                        .foregroundStyle(.tapbar)
+                        .foregroundStyle(.accent)
                     Text("Audiolog")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.lbl2)
@@ -171,10 +176,12 @@ struct RecordWidgetView: View {
                         title,
                         count in
                         HStack {
-                            //Image로 변경
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.blue.opacity(0.2))
-                                .frame(width: 44, height: 44)
+                            let asciiSum = title.unicodeScalars.map { Int($0.value) }.reduce(0, +)
+                            let thumbnailName = "Thumbnail\(((asciiSum % 7) + 1))"
+                            Image(thumbnailName)
+                                .resizable()
+                                .cornerRadius(10)
+                                .frame(width: 40, height: 40)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(title)
                                     .font(.body.weight(.semibold))
