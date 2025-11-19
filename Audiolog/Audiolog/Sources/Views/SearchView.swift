@@ -61,7 +61,6 @@ struct SearchView: View {
                                         searchText = keyword
                                     } label: {
                                         Text(keyword)
-                                            .lineLimit(1)
                                             .padding(.vertical, 10)
                                     }
                                     .listRowBackground(
@@ -105,12 +104,10 @@ struct SearchView: View {
                                             item.isTitleGenerated
                                                 ? .lbl1 : .lbl3
                                         )
-                                        .lineLimit(1)
 
                                         Text(
                                             "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
                                         )
-                                        .lineLimit(1)
                                         .font(.subheadline)
                                         .foregroundStyle(.lbl2)
                                     }

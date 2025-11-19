@@ -12,7 +12,6 @@ import SwiftUI
 
 struct RecordView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
-    let audioProcesser: AudioProcesser
 
     @State private var audioRecorder = AudioRecorder()
     @State private var timelineStart: Date?
@@ -23,8 +22,8 @@ struct RecordView: View {
     private let locationManager = LocationManager()
     private let weatherManager = WeatherManager()
 
-    @State private var currentLocation = ""
-    @State private var currentWeather = ""
+    @State private var currentLocation: String?
+    @State private var currentWeather: String?
 
     @State private var showToast: Bool = false
     @State private var isBusy: Bool = false
@@ -163,13 +162,14 @@ struct RecordView: View {
             .onAppear {
                 if timelineStart == nil { timelineStart = Date() }
                 locationManager.onLocationUpdate = { location, address in
-
+                    logger.log("location 업데이트 됨")
                     self.currentLocation = address
                     Task {
                         self.currentWeather =
                             try await weatherManager.getWeather(
                                 location: location
                             )
+                        logger.log("currentWeather: \(currentWeather ?? "")")
                     }
                 }
                 audioRecorder.setupCaptureSession()
@@ -181,7 +181,7 @@ struct RecordView: View {
             .onDisappear {
                 if audioRecorder.isRecording {
                     Task {
-                        await stopAndPersistRecordingOnScenePhaseChange()
+                        await stopRecording()
                     }
                 }
                 UIApplication.shared.isIdleTimerDisabled = false
@@ -191,7 +191,7 @@ struct RecordView: View {
                     scenePhase == .background || scenePhase == .inactive
                 else { return }
                 Task {
-                    await stopAndPersistRecordingOnScenePhaseChange()
+                    await stopRecording()
                 }
             }
         }
@@ -202,137 +202,85 @@ struct RecordView: View {
             guard startFromShortcut else { return }
 
             if !audioRecorder.isRecording {
-                handleRecordButtonTapped()
+                startRecording()
             }
 
             startFromShortcut = false
         }
     }
 
-    private func stopAndPersistRecordingOnScenePhaseChange() async {
+    private func handleRecordButtonTapped() {
+        if audioRecorder.isRecording {
+            Task { await stopRecording() }
+        } else {
+            startRecording()
+        }
+    }
+    
+    private func startRecording() {
+        logger.log("[RecordView] Starting recording...")
+
+        if audioPlayer.isPlaying {
+            audioPlayer.pause()
+        }
+
+        timelineStart = Date()
+        audioRecorder.startRecording()
+        UIApplication.shared.isIdleTimerDisabled = true
+
+        logger.log(
+            "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
+        )
+    }
+    
+    private func stopRecording() async {
+        let fileName = audioRecorder.fileName
+        let documentURL = getDocumentURL()
+        let fileURL = documentURL.appendingPathComponent(fileName)
+
         await audioRecorder.stopRecording()
         logger.log(
-            "[RecordView] Stopped recording due to scenePhase=\(String(describing: scenePhase)). "
-                + "fileURL=\(String(describing: audioRecorder.fileName)), elapsed=\(audioRecorder.timeElapsed)"
+            "[RecordView] Stopped recording. fileURL=\(String(describing: fileURL)), elapsed=\(audioRecorder.timeElapsed))"
         )
 
-        let fileName = audioRecorder.fileName
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showToast = true
+            }
+        }
+
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showToast = false
+                }
+            }
+        }
+
+        logger.log(
+            "[RecordView] Will insert Recording. url=\(fileURL.absoluteString), duration=\(audioRecorder.timeElapsed))"
+        )
+
+        locationManager.requestLocation()
 
         let recording = Recording(
             fileName: fileName,
-            title: "",
-            isTitleGenerated: false,
-            duration: audioRecorder.timeElapsed
+            duration: audioRecorder.timeElapsed,
+            weather: currentWeather,
+            location: currentLocation
         )
         modelContext.insert(recording)
-
-        let documentURL = getDocumentURL()
-        let fileURL = documentURL.appendingPathComponent(fileName)
 
         do {
             try modelContext.save()
             await MainActor.run { isRecordCreated = true }
             logger.log(
-                "[RecordView] Saved Recording to SwiftData (scenePhase). fileName=\(fileURL.lastPathComponent), duration=\(recording.duration)"
+                "[RecordView] Saved Recording to SwiftData. url=\(fileURL.lastPathComponent), duration=\(recording.duration))"
             )
         } catch {
             logger.log(
-                "[RecordView] ERROR: Failed to save Recording on scenePhase change. error=\(String(describing: error))"
-            )
-            return
-        }
-
-        do {
-            _ = try await waitUntilFileReady(fileURL)
-        } catch {
-            let ns = error as NSError
-            logger.log(
-                "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
-            )
-        }
-        await audioProcesser.enqueueProcess(
-            for: recording,
-            modelContext: modelContext
-        )
-    }
-
-    private func handleRecordButtonTapped() {
-        if audioRecorder.isRecording {
-            Task {
-                let fileName = audioRecorder.fileName
-                let documentURL = getDocumentURL()
-
-                let fileURL = documentURL.appendingPathComponent(fileName)
-
-                await audioRecorder.stopRecording()
-                logger.log(
-                    "[RecordView] Stopped recording. fileURL=\(String(describing: fileURL)), elapsed=\(audioRecorder.timeElapsed))"
-                )
-                // showToast 2초간 true 후 false
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showToast = true
-                    }
-                }
-                Task {
-                    try? await Task.sleep(nanoseconds: 2_000_000_000)
-                    await MainActor.run {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showToast = false
-                        }
-                    }
-                }
-
-                logger.log(
-                    "[RecordView] Will insert Recording. url=\(fileURL.absoluteString), duration=\(audioRecorder.timeElapsed))"
-                )
-
-                locationManager.requestLocation()
-
-                let recording = Recording(
-                    fileName: fileName,
-                    duration: audioRecorder.timeElapsed,
-                    weather: currentWeather,
-                    location: currentLocation
-                )
-                modelContext.insert(recording)
-                do {
-                    try modelContext.save()
-                    await MainActor.run { isRecordCreated = true }
-                    logger.log(
-                        "[RecordView] Saved Recording to SwiftData. url=\(fileURL.lastPathComponent), duration=\(recording.duration))"
-                    )
-
-                    // 엘리안 슈퍼 분석 세트 돌리기
-                    do {
-                        _ = try await waitUntilFileReady(fileURL)
-                    } catch {
-                        let ns = error as NSError
-                        logger.log(
-                            "[RecordView] waitUntilFileReady FAIL: \(ns.domain)(\(ns.code)) \(ns.localizedDescription)"
-                        )
-                    }
-
-                    await audioProcesser.enqueueProcess(
-                        for: recording,
-                        modelContext: modelContext
-                    )
-                } catch {
-                    logger.log(
-                        "[RecordView] ERROR: Failed to save Recording. error=\(String(describing: error))"
-                    )
-                }
-            }
-        } else {
-            logger.log("[RecordView] Starting recording...")
-            if audioPlayer.isPlaying {
-                audioPlayer.pause()
-            }
-            timelineStart = Date()
-            audioRecorder.startRecording()
-            UIApplication.shared.isIdleTimerDisabled = true
-            logger.log(
-                "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
+                "[RecordView] ERROR: Failed to save Recording. error=\(String(describing: error))"
             )
         }
     }
@@ -355,79 +303,5 @@ struct RecordView: View {
         formatter.locale = Locale(identifier: "ko_KR")
         formatter.dateFormat = "MM월 dd일 HH시 mm분"
         return formatter.string(from: date)
-    }
-
-    private func waitUntilFileReady(
-        _ url: URL,
-        stableWindowMs: Int = 300,  // 사이즈가 이 시간만큼 변하지 않으면 "안정"
-        timeout: TimeInterval = 5.0,  // 최대 대기 시간
-        pollIntervalMs: Int = 100  // 폴링 주기
-    ) async throws -> URL {
-        let fm = FileManager.default
-        let start = Date()
-        var lastSize: UInt64 = 0
-        var lastChange = Date()
-
-        func currentSize() -> UInt64 {
-            guard let attrs = try? fm.attributesOfItem(atPath: url.path),
-                let n = attrs[.size] as? NSNumber
-            else { return 0 }
-            return n.uint64Value
-        }
-
-        while true {
-            let now = Date()
-
-            if now.timeIntervalSince(start) >= timeout {
-                throw APFailure(
-                    "타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))"
-                )
-            }
-
-            guard fm.fileExists(atPath: url.path) else {
-                try? await Task.sleep(
-                    nanoseconds: UInt64(pollIntervalMs) * 1_000_000
-                )
-                continue
-            }
-
-            let size = currentSize()
-            if size != lastSize {
-                lastSize = size
-                lastChange = now
-            }
-
-            let stableForMs = now.timeIntervalSince(lastChange) * 1000
-            let stableEnough = stableForMs >= Double(stableWindowMs)
-
-            if stableEnough && size > 0 {
-                let asset = AVURLAsset(url: url)
-                do {
-                    let tracks = try await asset.load(.tracks)
-                    let hasAudio = tracks.contains { $0.mediaType == .audio }
-                    if hasAudio {
-                        logger.log(
-                            "[waitUntilFileReady] ready url=\(url.lastPathComponent) size=\(size)B"
-                        )
-                        return url
-                    } else {
-                        logger.log(
-                            "[waitUntilFileReady] no audio tracks yet. size=\(size)B"
-                        )
-                    }
-                } catch {
-                    let ns = error as NSError
-                    logger.log(
-                        "[waitUntilFileReady] asset.load(.tracks) error \(ns.domain)(\(ns.code)): \(ns.localizedDescription)"
-                    )
-                }
-            }
-
-            try? await Task.sleep(
-                nanoseconds: UInt64(pollIntervalMs) * 1_000_000
-            )
-        }
-
-        throw APFailure("타임아웃: 파일이 준비되지 않았습니다 (\(url.lastPathComponent))")
     }
 }

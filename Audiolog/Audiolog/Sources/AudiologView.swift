@@ -11,7 +11,9 @@ import WidgetKit
 
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
-    private let audioProcesser = AudioProcesser()
+    @State private var audioProcesser = AudioProcesser()
+
+    @State private var generateTitleTask: Task<Void, Never>?
 
     @Environment(\.modelContext) private var modelContext
 
@@ -40,7 +42,6 @@ struct AudiologView: View {
                 value: "녹음"
             ) {
                 RecordView(
-                    audioProcesser: audioProcesser,
                     isRecordCreated: $isRecordCreated,
                     startFromShortcut: $startRecordingFromShortcut
                 )
@@ -80,56 +81,21 @@ struct AudiologView: View {
         .task {
             let emptyThumb = UIImage()
             UISlider.appearance().setThumbImage(emptyThumb, for: .normal)
-            await reprocessPendingTitlesIfNeeded()
+            handlePendingRecordings()
         }
         .onChange(of: shortcutBridge.action) { _, newValue in
             handleShortcutAction(newValue)
         }
-        .onChange(of: processedCount) { _ in
+        .onChange(of: processedCount) {
             updateRecapWidgetSnapshot()
+        }
+        .onChange(of: recordings) {
+            logger.log("recordings changed")
+            handlePendingRecordings()
         }
         .onAppear {
             updateRecapWidgetSnapshot()
         }
-    }
-
-    @MainActor
-    private func reprocessPendingTitlesIfNeeded() async {
-        guard !isReprocessingPending else { return }
-        let targets = pendingRecordings()
-        guard !targets.isEmpty else { return }
-
-        isReprocessingPending = true
-        defer { isReprocessingPending = false }
-
-        logger.log(
-            "[AudiologView] Reprocess pending titles. count=\(targets.count)"
-        )
-
-        let fileManager = FileManager.default
-        let documentURL = getDocumentURL()
-
-        for target in targets {
-            let fileName = target.fileName
-            let fileURL = documentURL.appendingPathComponent(fileName)
-
-            guard fileManager.fileExists(atPath: fileURL.path) else {
-                logger.log(
-                    "[AudiologView] Skip reprocess (file missing): \(fileURL)"
-                )
-                continue
-            }
-            let processor = AudioProcesser()
-            await processor.enqueueProcess(
-                for: target,
-                modelContext: modelContext
-            )
-        }
-        logger.log("[AudiologView] Reprocess done.")
-    }
-
-    private func pendingRecordings() -> [Recording] {
-        recordings.filter { !$0.isTitleGenerated || $0.title.isEmpty }
     }
 
     private func handleShortcutAction(_ action: ShortcutBridge.Action) {
@@ -203,4 +169,36 @@ struct AudiologView: View {
         logger.log("[AudiologView] playCategory(\(tag)) – started")
     }
 
+    private func handlePendingRecordings() {
+        generateTitleTask?.cancel()
+        generateTitleTask = Task {
+            let pending = recordings.filter { recording in
+                recording.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .isEmpty
+                    || recording.isTitleGenerated == false
+            }
+
+            if pending.isEmpty {
+                logger.log("[AudiologView] 제목 미생성 레코딩 없음")
+            } else {
+                logger.log("[AudiologView] 제목 미생성 레코딩 \(pending.count)개 발견")
+
+                for recording in pending {
+                    if Task.isCancelled { break }
+                    await audioProcesser.configureLanguageModelSession()
+                    await audioProcesser.classify(recording: recording)
+                    await audioProcesser.transcribe(recording: recording)
+                    await audioProcesser.shazam(recording: recording)
+                    await audioProcesser.generateTitle(recording: recording)
+
+                    try? modelContext.save()
+                    logger.log(
+                        "[RecordView] Title generated and saved. title: \(recording.title)"
+                    )
+                }
+            }
+
+            if !Task.isCancelled { generateTitleTask = nil }
+        }
+    }
 }
