@@ -113,6 +113,7 @@ struct RecapView: View {
                 .transition(.opacity)
             }
             .navigationTitle("추천 로그")
+            .frame(maxWidth: .infinity)
         }
     }
 }
