@@ -18,7 +18,7 @@ struct PlaylistView: View {
 
     var body: some View {
         NavigationStack {
-            VStack {
+            VStack(spacing: 0) {
                 if recordings.isEmpty {
                     Spacer()
                     VStack(spacing: 10) {

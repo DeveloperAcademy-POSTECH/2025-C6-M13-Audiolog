@@ -15,7 +15,6 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     var currentIndex: Int?
 
     private(set) var currentPlaybackTime: Double = 0
-    private(set) var currentPlaybackRate: Float = 0
     private(set) var currentDuration: Double = 0
 
     override init() {
@@ -47,7 +46,6 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             if let player = audioPlayer {
                 currentDuration = player.duration
                 currentPlaybackTime = player.currentTime
-                currentPlaybackRate = player.rate
             }
         } catch {
             logger.log("[AudioPlayer] AVAudioPlayer 생성 실패함")
@@ -145,7 +143,6 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
         currentIndex = nil
         currentDuration = 0
         currentPlaybackTime = 0
-        currentPlaybackRate = 0
 
         updateNowPlayingInfo()
     }
@@ -156,7 +153,6 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
     ) {
         stopPlaybackTimer()
         isPlaying = false
-        currentPlaybackRate = 0
         updateNowPlayingInfo()
     }
 
@@ -201,7 +197,6 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             }
 
             self.currentPlaybackTime = player.currentTime
-            self.currentPlaybackRate = player.rate
             self.currentDuration = player.duration
         }
 
