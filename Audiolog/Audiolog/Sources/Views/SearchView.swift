@@ -242,6 +242,9 @@ struct SearchView: View {
         .onSubmit(of: .search) {
             saveRecent(searchText)
         }
+        .sheet(isPresented: $isPresenting) {
+            AISuggestionView(isPresented: $isPresenting)
+        }
         .task(id: externalQuery) {
             let q = externalQuery.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !q.isEmpty else { return }
