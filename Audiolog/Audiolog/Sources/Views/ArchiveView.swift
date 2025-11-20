@@ -40,7 +40,7 @@ struct ArchiveView: View {
             ZStack {
                 Rectangle()
                     .foregroundColor(.sub)
-                    .frame(width: 400, height: 400)
+                    .frame(width: 300, height: 300)
                     .cornerRadius(350)
                     .blur(radius: 100)
                     .offset(x: -100, y: -320)
