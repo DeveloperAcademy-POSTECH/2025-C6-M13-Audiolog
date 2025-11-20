@@ -65,6 +65,7 @@
 		099102772ECA8D65005A0C91 /* Exceptions for "Audiolog" folder in "AudiologWidgetExtensionExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Resources/Colors.xcassets,
 				Sources/Intents/Bridge/ShortcutBridge.swift,
 				Sources/Intents/Intents/PlayRecapCategoryIntent.swift,
 				Sources/Intents/Intents/SearchAndPlayRecordingIntent.swift,

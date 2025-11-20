@@ -31,5 +31,33 @@ struct StartRecordingWidget: Widget {
             .systemMedium,
             .systemLarge
         ])
+        .contentMarginsDisabled()
     }
+}
+
+#Preview(as: .systemSmall) {
+    StartRecordingWidget()
+} timeline: {
+    RecordWidgetEntry(
+        date: .now,
+        categories: [("즐겨찾기", 3), ("파도소리", 2)]
+    )
+}
+
+#Preview(as: .systemMedium) {
+    StartRecordingWidget()
+} timeline: {
+    RecordWidgetEntry(
+        date: .now,
+        categories: [("즐겨찾기", 3), ("파도소리", 2)]
+    )
+}
+
+#Preview(as: .systemLarge) {
+    StartRecordingWidget()
+} timeline: {
+    RecordWidgetEntry(
+        date: .now,
+        categories: [("즐겨찾기", 3), ("파도소리", 2), ("파도소리", 2), ("파도소리", 2)]
+    )
 }
