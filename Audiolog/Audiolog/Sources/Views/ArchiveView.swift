@@ -77,9 +77,16 @@ struct ArchiveView: View {
                                         showSuggestion = false
                                     } label: {
                                         Image(systemName: "xmark")
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(.lbl2)
-                                            .padding(8)
+                                            .font(
+                                                .system(
+                                                    size: 12,
+                                                    weight: .semibold
+                                                )
+                                            )
+                                            .foregroundStyle(.sub)
+                                            .frame(width: 24, height: 24)
+                                            .background(Color.white)
+                                            .clipShape(Circle())
                                     }
                                     .buttonStyle(.plain)
                                 }
