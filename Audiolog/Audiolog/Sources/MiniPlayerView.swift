@@ -13,13 +13,14 @@ struct MiniPlayerView: View {
     @State private var isSliderEditing: Bool = false
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 10) {
             if let current = audioPlayer.current {
                 HStack {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(current.title == "" ? "제목 생성중" : current.title)
                             .font(.body.weight(.semibold))
                             .foregroundColor(.lbl1)
+                            .lineLimit(1)
 
                         if let createdAt = audioPlayer.current?.createdAt {
                             Text(createdAt.formatted("M월 d일 EEEE"))
@@ -31,9 +32,10 @@ struct MiniPlayerView: View {
                 }
                 .padding(.top, 20)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 14)
 
-                VStack(spacing: 4) {
+                HStack(spacing: 5) {
+                    Text(formatTime(audioPlayer.currentPlaybackTime))
+
                     Slider(
                         value:
                             Binding(
@@ -46,32 +48,18 @@ struct MiniPlayerView: View {
                     )
                     .tint(.lbl1)
 
-                    HStack {
-                        Text(formatTime(audioPlayer.currentPlaybackTime))
-                        Spacer()
-                        Text(formatTime(audioPlayer.currentDuration))
-                    }
-                    .font(.footnote.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.lbl3)
+                    Text(formatTime(audioPlayer.currentDuration))
                 }
-                .frame(height: 28)
+                .font(.footnote.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(.lbl3)
                 .padding(.horizontal, 20)
 
-                HStack(spacing: 30) {
+                HStack(spacing: 50) {
                     Button {
                         audioPlayer.playPreviousInPlaylist()
                     } label: {
                         Image(systemName: "backward.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 31, height: 31)
-                    }
-
-                    Button {
-                        audioPlayer.skip(isForward: false)
-                    } label: {
-                        Image(systemName: "gobackward.5")
                             .resizable()
                             .scaledToFit()
                             .frame(width: 31, height: 31)
@@ -91,15 +79,6 @@ struct MiniPlayerView: View {
                     }
 
                     Button {
-                        audioPlayer.skip(isForward: true)
-                    } label: {
-                        Image(systemName: "goforward.5")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 31, height: 31)
-                    }
-
-                    Button {
                         audioPlayer.playNextInPlaylist()
                     } label: {
                         Image(systemName: "forward.fill")
@@ -109,8 +88,8 @@ struct MiniPlayerView: View {
                     }
                 }
                 .tint(.lbl1)
-                .padding(.top, 15)
-                .padding(.bottom, 17)
+                .padding(.top, 10)
+                .padding(.bottom, 20)
             } else {
                 HStack(alignment: .center) {
                     Text("재생 중이 아님")
