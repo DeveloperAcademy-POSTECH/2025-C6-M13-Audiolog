@@ -17,6 +17,9 @@ struct ArchiveView: View {
     ]) private var recordings: [Recording]
 
     @Binding var isRecordCreated: Bool
+    @Binding var isIntelligenceEnabled: Bool
+    @State private var isPresenting = false
+    @State private var showSuggestion = true
 
     @State private var editingId: UUID?
     @State private var tempTitle: String = ""
@@ -57,6 +60,47 @@ struct ArchiveView: View {
                         Spacer()
                     } else {
                         List(selection: $selection) {
+                            if showSuggestion {
+                                HStack(spacing: 10) {
+                                    Image("Intelligence")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 30)
+
+                                    Text("Audiolog를 100% 활용해 보세요.")
+                                        .font(.callout)
+                                        .foregroundStyle(.lbl1)
+
+                                    Spacer()
+
+                                    Button {
+                                        showSuggestion = false
+                                    } label: {
+                                        Image(systemName: "xmark")
+                                            .font(
+                                                .system(
+                                                    size: 12,
+                                                    weight: .semibold
+                                                )
+                                            )
+                                            .foregroundStyle(.sub)
+                                            .frame(width: 24, height: 24)
+                                            .background(Color.white)
+                                            .clipShape(Circle())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .frame(height: 60)
+                                .padding(.horizontal, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(.listStroke)
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    isPresenting = true
+                                }
+                            }
                             ForEach(recordings) { item in
                                 HStack {
                                     HStack {
@@ -258,7 +302,7 @@ struct ArchiveView: View {
                 .constant(isSelecting ? .active : .inactive)
             )
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem {
                     Button(isSelecting ? "취소" : "선택") {
                         withAnimation {
                             isSelecting.toggle()
@@ -273,6 +317,9 @@ struct ArchiveView: View {
                         }
                     }
                 }
+            }
+            .sheet(isPresented: $isPresenting) {
+                AISuggestionView(isPresented: $isPresenting)
             }
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {
