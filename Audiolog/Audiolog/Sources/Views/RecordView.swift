@@ -181,7 +181,7 @@ struct RecordView: View {
             .onDisappear {
                 if audioRecorder.isRecording {
                     Task {
-                        await stopAndPersistRecordingOnScenePhaseChange()
+                        await stopRecording()
                     }
                 }
                 UIApplication.shared.isIdleTimerDisabled = false
@@ -191,7 +191,7 @@ struct RecordView: View {
                     scenePhase == .background || scenePhase == .inactive
                 else { return }
                 Task {
-                    await stopAndPersistRecordingOnScenePhaseChange()
+                    await stopRecording()
                 }
             }
         }
@@ -202,29 +202,73 @@ struct RecordView: View {
             guard startFromShortcut else { return }
 
             if !audioRecorder.isRecording {
-                handleRecordButtonTapped()
+                startRecording()
             }
 
             startFromShortcut = false
         }
     }
 
-    private func stopAndPersistRecordingOnScenePhaseChange() async {
-        await audioRecorder.stopRecording()
-        logger.log(
-            "[RecordView] Stopped recording due to scenePhase=\(String(describing: scenePhase)). "
-                + "fileURL=\(String(describing: audioRecorder.fileName)), elapsed=\(audioRecorder.timeElapsed)"
-        )
+    private func handleRecordButtonTapped() {
+        if audioRecorder.isRecording {
+            Task { await stopRecording() }
+        } else {
+            startRecording()
+        }
+    }
+    
+    private func startRecording() {
+        logger.log("[RecordView] Starting recording...")
 
+        if audioPlayer.isPlaying {
+            audioPlayer.pause()
+        }
+
+        timelineStart = Date()
+        audioRecorder.startRecording()
+        UIApplication.shared.isIdleTimerDisabled = true
+
+        logger.log(
+            "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
+        )
+    }
+    
+    private func stopRecording() async {
         let fileName = audioRecorder.fileName
         let documentURL = getDocumentURL()
         let fileURL = documentURL.appendingPathComponent(fileName)
 
+        await audioRecorder.stopRecording()
+        logger.log(
+            "[RecordView] Stopped recording. fileURL=\(String(describing: fileURL)), elapsed=\(audioRecorder.timeElapsed))"
+        )
+
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showToast = true
+            }
+        }
+
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showToast = false
+                }
+            }
+        }
+
+        logger.log(
+            "[RecordView] Will insert Recording. url=\(fileURL.absoluteString), duration=\(audioRecorder.timeElapsed))"
+        )
+
+        locationManager.requestLocation()
+
         let recording = Recording(
             fileName: fileName,
-            title: "",
-            isTitleGenerated: false,
-            duration: audioRecorder.timeElapsed
+            duration: audioRecorder.timeElapsed,
+            weather: currentWeather,
+            location: currentLocation
         )
         modelContext.insert(recording)
 
@@ -232,77 +276,11 @@ struct RecordView: View {
             try modelContext.save()
             await MainActor.run { isRecordCreated = true }
             logger.log(
-                "[RecordView] Saved Recording to SwiftData (scenePhase). fileName=\(fileURL.lastPathComponent), duration=\(recording.duration)"
+                "[RecordView] Saved Recording to SwiftData. url=\(fileURL.lastPathComponent), duration=\(recording.duration))"
             )
         } catch {
             logger.log(
-                "[RecordView] ERROR: Failed to save Recording on scenePhase change. error=\(String(describing: error))"
-            )
-            return
-        }
-    }
-
-    private func handleRecordButtonTapped() {
-        if audioRecorder.isRecording {
-            Task {
-                let fileName = audioRecorder.fileName
-                let documentURL = getDocumentURL()
-                let fileURL = documentURL.appendingPathComponent(fileName)
-
-                await audioRecorder.stopRecording()
-                logger.log(
-                    "[RecordView] Stopped recording. fileURL=\(String(describing: fileURL)), elapsed=\(audioRecorder.timeElapsed))"
-                )
-
-                await MainActor.run {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showToast = true
-                    }
-                }
-                Task {
-                    try? await Task.sleep(nanoseconds: 2_000_000_000)
-                    await MainActor.run {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            showToast = false
-                        }
-                    }
-                }
-
-                logger.log(
-                    "[RecordView] Will insert Recording. url=\(fileURL.absoluteString), duration=\(audioRecorder.timeElapsed))"
-                )
-
-                locationManager.requestLocation()
-
-                let recording = Recording(
-                    fileName: fileName,
-                    duration: audioRecorder.timeElapsed,
-                    weather: currentWeather,
-                    location: currentLocation
-                )
-                modelContext.insert(recording)
-                do {
-                    try modelContext.save()
-                    await MainActor.run { isRecordCreated = true }
-                    logger.log(
-                        "[RecordView] Saved Recording to SwiftData. url=\(fileURL.lastPathComponent), duration=\(recording.duration))"
-                    )
-                } catch {
-                    logger.log(
-                        "[RecordView] ERROR: Failed to save Recording. error=\(String(describing: error))"
-                    )
-                }
-            }
-        } else {
-            logger.log("[RecordView] Starting recording...")
-            if audioPlayer.isPlaying {
-                audioPlayer.pause()
-            }
-            timelineStart = Date()
-            audioRecorder.startRecording()
-            UIApplication.shared.isIdleTimerDisabled = true
-            logger.log(
-                "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
+                "[RecordView] ERROR: Failed to save Recording. error=\(String(describing: error))"
             )
         }
     }

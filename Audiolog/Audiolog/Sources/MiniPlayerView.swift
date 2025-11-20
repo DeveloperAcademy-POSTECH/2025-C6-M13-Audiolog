@@ -9,8 +9,8 @@ import SwiftUI
 
 struct MiniPlayerView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
-    @State private var isScrubbing = false
-    @State private var scrubTime: Double = 0
+
+    @State private var isSliderEditing: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,61 +28,28 @@ struct MiniPlayerView: View {
                         }
                     }
                     Spacer()
-
-                    Button {
-                        let nextIndex = (audioPlayer.playbackRateIndex + 1) % audioPlayer.allPlaybackRates.count
-                        audioPlayer.playbackRateIndex = nextIndex
-                    } label: {
-                        Text(audioPlayer.allPlaybackRates[audioPlayer.playbackRateIndex].label)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.lbl1)
-                            .monospacedDigit()
-                    }
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
                 }
                 .padding(.top, 20)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 14)
 
-                let duration = max(audioPlayer.audioLengthSeconds, 1)
-                let currentTime =
-                    isScrubbing ? scrubTime : audioPlayer.currentPlaybackTime
-
                 VStack(spacing: 4) {
                     Slider(
-                        value: Binding(
-                            get: { currentTime },
-                            set: { newValue in
-                                let clamped = min(max(newValue, 0), duration)
-                                scrubTime = clamped
-                            }
-                        ),
-                        in: 0...duration,
-                        onEditingChanged: { editing in
-                            if editing {
-                                DispatchQueue.main.async {
-                                    isScrubbing = true
-                                    scrubTime = audioPlayer.currentPlaybackTime
+                        value:
+                            Binding(
+                                get: { audioPlayer.currentPlaybackTime },
+                                set: { value in
+                                    audioPlayer.seek(to: value)
                                 }
-                            } else {
-                                DispatchQueue.main.async {
-                                    isScrubbing = false
-                                }
-                            }
-                        }
+                            ),
+                        in: 0...audioPlayer.currentDuration,
                     )
                     .tint(.lbl1)
-                    .onChange(of: isScrubbing) { _, newValue in
-                        if newValue == false {
-                            audioPlayer.seek(to: scrubTime)
-                        }
-                    }
 
                     HStack {
-                        Text(formatTime(currentTime))
+                        Text(formatTime(audioPlayer.currentPlaybackTime))
                         Spacer()
-                        Text(formatTime(duration))
+                        Text(formatTime(audioPlayer.currentDuration))
                     }
                     .font(.footnote.weight(.semibold))
                     .monospacedDigit()
@@ -102,7 +69,7 @@ struct MiniPlayerView: View {
                     }
 
                     Button {
-                        audioPlayer.skip(forwards: false)
+                        audioPlayer.skip(isForward: false)
                     } label: {
                         Image(systemName: "gobackward.5")
                             .resizable()
@@ -124,7 +91,7 @@ struct MiniPlayerView: View {
                     }
 
                     Button {
-                        audioPlayer.skip(forwards: true)
+                        audioPlayer.skip(isForward: true)
                     } label: {
                         Image(systemName: "goforward.5")
                             .resizable()
