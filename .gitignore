@@ -31,3 +31,4 @@ xcuserdata/
 *.swo
 *~
 AudioLog/Audiolog/Info.plist
+Audiolog/Audiolog/Config.xcconfig

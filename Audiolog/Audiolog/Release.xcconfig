@@ -1,0 +1,12 @@
+//
+//  Config.xcconfig
+//  Audiolog
+//
+//  Created by Seungeun Park on 11/12/25.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+
+KAKAO_REST_API_KEY = $(KAKAO_REST_API_KEY)
+ 
