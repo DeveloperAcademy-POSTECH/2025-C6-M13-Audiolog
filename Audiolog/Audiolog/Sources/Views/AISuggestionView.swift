@@ -67,29 +67,31 @@ struct AISuggestionView: View {
         }
         .ignoresSafeArea()
         Button {
-            if let url = URL(string: "App-prefs:APPLE_INTELLIGENCE") {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
                 openURL(url)
             }
         } label: {
             Text("인텔리전스 켜기")
                 .fontWeight(.semibold)
+                .frame(maxWidth: .infinity, minHeight: 56)
         }
-        .frame(width: 326, height: 56)
         .background(.blue)
         .glassEffect()
         .foregroundStyle(.white)
         .cornerRadius(1000)
+        .padding(.horizontal, 38)
 
         Button {
             isPresented = false
         } label: {
             Text("지금 안 함")
                 .fontWeight(.semibold)
+                .frame(maxWidth: .infinity, minHeight: 56)
         }
-        .frame(width: 326, height: 56)
         .glassEffect()
         .foregroundStyle(.lbl1)
         .cornerRadius(1000)
+        .padding(.horizontal, 38)
 
         Spacer()
 
