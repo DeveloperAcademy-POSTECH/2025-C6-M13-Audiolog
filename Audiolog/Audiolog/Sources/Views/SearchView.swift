@@ -15,6 +15,7 @@ private enum RecentSearch {
 
 struct SearchView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
+    @Environment(AudioProcessor.self) private var audioProcessor
 
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [
@@ -27,9 +28,12 @@ struct SearchView: View {
     @Binding var externalQuery: String
     @Binding var isIntelligenceEnabled: Bool
     @State private var isPresenting = false
-    @State private var showSuggestion = true
 
     @AppStorage(RecentSearch.data) private var recentSearch: String = ""
+
+    private var navTitle: String {
+        return searchText.isEmpty ? "최근 검색한 항목" : "\(filtered.count)개의 항목"
+    }
 
     private var recentItems: [String] {
         recentSearch
@@ -48,92 +52,105 @@ struct SearchView: View {
         NavigationStack {
             VStack {
                 if searchText.isEmpty {
-                    Title(text: "최근 검색한 항목")
-                    if showSuggestion {
-                        HStack(spacing: 20) {
-                            Image("Intelligence")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 30)
-
-                            Text("Audiolog를 100% 활용해 보세요.")
-                                .font(.callout)
-                                .foregroundStyle(.lbl1)
-
-                            Spacer()
-
-                            Button {
-                                showSuggestion = false
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .font(
-                                        .system(
-                                            size: 12,
-                                            weight: .semibold
-                                        )
-                                    )
-                                    .foregroundStyle(.sub)
-                                    .frame(width: 24, height: 24)
-                                    .background(Color.white)
-                                    .clipShape(Circle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        .padding(.horizontal, 20)
-                        .frame(height: 60)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10)
-                                .fill(.listStroke)
-                        )
-                        .padding(.horizontal, 20)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            isPresenting = true
-                        }
-                    }
                     VStack {
+                        List {
+                            if !audioProcessor.isLanguageModelAvailable {
+                                HStack(spacing: 10) {
+                                    Image("Intelligence")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 30)
+
+                                    Text("Audiolog를 100% 활용해 보세요.")
+                                        .font(.callout)
+                                        .foregroundStyle(.lbl1)
+
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 20)
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 15)
+                                        .fill(.listStroke)
+                                        .padding(.horizontal, 20)
+                                )
+                                .frame(height: 40)
+                                .listRowSeparator(.hidden)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    isPresenting = true
+                                }
+                            }
+
+                            if recentItems.isEmpty {
+                                VStack(alignment: .center) {
+                                    Text("최근 검색한 항목이 없습니다.")
+                                }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .font(.callout)
+                                    .foregroundStyle(.lbl2)
+                                    .listRowBackground(
+                                        Color.clear
+                                    )
+                                    .listRowSeparator(.hidden)
+                                    .padding(20)
+                            }
+
+                            ForEach(recentItems, id: \.self) {
+                                keyword in
+                                Button {
+                                    searchText = keyword
+                                } label: {
+                                    Text(keyword)
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 10)
+                                }
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 15)
+                                        .fill(.bg1)
+                                        .padding(.horizontal, 20)
+                                )
+                            }
+                            .onDelete(perform: removeRecent)
+                        }
+                        .listStyle(.plain)
+                    }
+                    .overlay(alignment: .center, content: {
                         if recentItems.isEmpty {
                             Text("최근 검색한 항목이 없습니다.")
                                 .font(.callout)
                                 .foregroundStyle(.lbl2)
-                                .offset(x: 0, y: 0)
-                        } else {
-                            List {
-                                ForEach(recentItems, id: \.self) {
-                                    keyword in
-                                    Button {
-                                        searchText = keyword
-                                    } label: {
-                                        Text(keyword)
-                                            .padding(.vertical, 10)
-                                    }
-                                    .listRowBackground(
-                                        Color.bg1
-//                                        Rectangle().fill(.bg1)
-                                    )
-                                }
-                                .onDelete(perform: removeRecent)
-                            }
-                            .listStyle(.plain)
                         }
-                    }
+                    })
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    Title(text: "검색 결과")
-
-                    HStack(spacing: 5) {
-                        Image(systemName: "magnifyingglass")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 18, height: 18)
-                        Text("\(filtered.count)개의 항목")
-                            .font(.callout.weight(.semibold))
-                    }
-                    .padding(.leading, 20)
-                    .foregroundStyle(.lbl2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
                     List {
+                        if !audioProcessor.isLanguageModelAvailable {
+                            HStack(spacing: 10) {
+                                Image("Intelligence")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 30)
+
+                                Text("Audiolog를 100% 활용해 보세요.")
+                                    .font(.callout)
+                                    .foregroundStyle(.lbl1)
+
+                                Spacer()
+                            }
+                            .padding(.horizontal, 20)
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(.listStroke)
+                                    .padding(.horizontal, 20)
+                            )
+                            .frame(height: 40)
+                            .listRowSeparator(.hidden)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                isPresenting = true
+                            }
+                        }
+
                         ForEach(filtered) { item in
                             HStack {
                                 HStack {
@@ -181,12 +198,14 @@ struct SearchView: View {
                                 .contentShape(Rectangle())
                                 .frame(width: 44, height: 44)
                             }
+                            .padding(.horizontal, 20)
                             .listRowBackground(
                                 RoundedRectangle(cornerRadius: 15)
                                     .fill(.listBg)
+                                    .padding(.horizontal, 20)
                             )
                             .listRowSeparator(.hidden)
-                            .padding(5)
+                            .padding(.vertical, 5)
                             .swipeActions(
                                 edge: .leading,
                                 allowsFullSwipe: false
@@ -206,9 +225,11 @@ struct SearchView: View {
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                                     .accessibilityElement(children: .ignore)
-                                    .accessibilityLabel(Text(
-                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
-                                    ))
+                                    .accessibilityLabel(
+                                        Text(
+                                            "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                        )
+                                    )
                                 }
                                 .tint(.main)
                             }
@@ -217,7 +238,6 @@ struct SearchView: View {
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .combine)
                     }
-                    .padding(.horizontal, 20)
                     .listStyle(.plain)
                     .listRowSpacing(10)
                     .scrollContentBackground(.hidden)
@@ -236,8 +256,13 @@ struct SearchView: View {
                 .transition(.opacity)
             }
             .background(.bg1)
+            .navigationTitle(navTitle)
         }
-        .searchable(text: $searchText, prompt: "Search")
+        .searchable(
+            text: $searchText,
+            prompt: audioProcessor.isLanguageModelAvailable
+                ? "어떤 추억을 찾아볼까요?" : "검색"
+        )
         .searchFocused($isSearchFocused)
         .onSubmit(of: .search) {
             saveRecent(searchText)
@@ -246,7 +271,9 @@ struct SearchView: View {
             AISuggestionView(isPresented: $isPresenting)
         }
         .task(id: externalQuery) {
-            let q = externalQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+            let q = externalQuery.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
             guard !q.isEmpty else { return }
 
             // Intent에서 넘어온 검색어로 검색 시작

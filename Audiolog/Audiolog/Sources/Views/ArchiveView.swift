@@ -10,6 +10,8 @@ import SwiftUI
 
 struct ArchiveView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
+    @Environment(AudioProcessor.self) private var audioProcessor
+
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: [
@@ -19,7 +21,6 @@ struct ArchiveView: View {
     @Binding var isRecordCreated: Bool
     @Binding var isIntelligenceEnabled: Bool
     @State private var isPresenting = false
-    @State private var showSuggestion = true
 
     @State private var editingId: UUID?
     @State private var tempTitle: String = ""
@@ -60,7 +61,7 @@ struct ArchiveView: View {
                         Spacer()
                     } else {
                         List(selection: $selection) {
-                            if showSuggestion {
+                            if audioProcessor.isLanguageModelAvailable {
                                 HStack(spacing: 10) {
                                     Image("Intelligence")
                                         .resizable()
@@ -72,30 +73,15 @@ struct ArchiveView: View {
                                         .foregroundStyle(.lbl1)
 
                                     Spacer()
-
-                                    Button {
-                                        showSuggestion = false
-                                    } label: {
-                                        Image(systemName: "xmark")
-                                            .font(
-                                                .system(
-                                                    size: 12,
-                                                    weight: .semibold
-                                                )
-                                            )
-                                            .foregroundStyle(.sub)
-                                            .frame(width: 24, height: 24)
-                                            .background(Color.white)
-                                            .clipShape(Circle())
-                                    }
-                                    .buttonStyle(.plain)
                                 }
-                                .frame(height: 60)
-                                .padding(.horizontal, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
+                                .padding(.horizontal, 20)
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 15)
                                         .fill(.listStroke)
+                                        .padding(.horizontal, 20)
                                 )
+                                .frame(height: 40)
+                                .listRowSeparator(.hidden)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     isPresenting = true
@@ -181,9 +167,11 @@ struct ArchiveView: View {
                                 .listRowBackground(
                                     RoundedRectangle(cornerRadius: 15)
                                         .fill(.listBg)
+                                        .padding(.horizontal, 20)
                                 )
                                 .listRowSeparator(.hidden)
                                 .padding(.vertical, 5)
+                                .padding(.horizontal, 20)
                                 .swipeActions(
                                     edge: .leading,
                                     allowsFullSwipe: false
@@ -269,6 +257,7 @@ struct ArchiveView: View {
                     }
                 }
             }
+            .listStyle(.plain)
             .listRowSpacing(10)
             .scrollContentBackground(.hidden)
             .alert("현재 녹음을 삭제하겠습니까?", isPresented: $isShowingDeleteAlert) {

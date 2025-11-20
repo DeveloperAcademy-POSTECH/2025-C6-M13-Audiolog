@@ -11,7 +11,7 @@ import WidgetKit
 
 struct AudiologView: View {
     @State private var audioPlayer = AudioPlayer()
-    @State private var audioProcesser = AudioProcesser()
+    @State private var audioProcessor = AudioProcessor()
 
     @State private var generateTitleTask: Task<Void, Never>?
 
@@ -81,6 +81,7 @@ struct AudiologView: View {
             }
         }
         .environment(audioPlayer)
+        .environment(audioProcessor)
         .task {
             let emptyThumb = UIImage()
             UISlider.appearance().setThumbImage(emptyThumb, for: .normal)
@@ -188,11 +189,11 @@ struct AudiologView: View {
 
                 for recording in pending {
                     if Task.isCancelled { break }
-                    await audioProcesser.configureLanguageModelSession()
-                    await audioProcesser.classify(recording: recording)
-                    await audioProcesser.transcribe(recording: recording)
-                    await audioProcesser.shazam(recording: recording)
-                    await audioProcesser.generateTitle(recording: recording)
+                    await audioProcessor.configureLanguageModelSession()
+                    await audioProcessor.classify(recording: recording)
+                    await audioProcessor.transcribe(recording: recording)
+                    await audioProcessor.shazam(recording: recording)
+                    await audioProcessor.generateTitle(recording: recording)
 
                     try? modelContext.save()
                     logger.log(

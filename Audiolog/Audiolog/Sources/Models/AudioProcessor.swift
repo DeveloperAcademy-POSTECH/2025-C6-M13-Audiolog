@@ -1,5 +1,5 @@
 //
-//  AudioProcesser.swift
+//  AudioProcessor.swift
 //  Audiolog
 //
 //  Created by 성현 on 11/6/25.
@@ -13,7 +13,7 @@ import Speech
 
 @MainActor
 @Observable
-final class AudioProcesser {
+final class AudioProcessor {
     var isLanguageModelAvailable: Bool = true
     var languageModelSession: LanguageModelSession?
 
@@ -191,10 +191,10 @@ final class AudioProcesser {
                     item.artist ?? recording.bgmArtist
             }
             logger.log(
-                "[AudioProcesser] (4.5) ShazamKit 매칭: \(item.title ?? "?") - \(item.artist ?? "?")"
+                "[AudioProcessor] (4.5) ShazamKit 매칭: \(item.title ?? "?") - \(item.artist ?? "?")"
             )
         } else {
-            logger.log("[AudioProcesser] (4.5) ShazamKit 매칭 결과 없음")
+            logger.log("[AudioProcessor] (4.5) ShazamKit 매칭 결과 없음")
         }
     }
 
