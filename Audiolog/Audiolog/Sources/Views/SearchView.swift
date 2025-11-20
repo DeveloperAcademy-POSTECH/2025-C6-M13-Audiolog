@@ -67,11 +67,10 @@ struct SearchView: View {
 
                                     Spacer()
                                 }
-                                .padding(.horizontal, 20)
+                                .padding(5)
                                 .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 15)
-                                        .fill(.listStroke)
-                                        .padding(.horizontal, 20)
+                                    RoundedRectangle(cornerRadius: 28)
+                                        .fill(.listBg)
                                 )
                                 .frame(height: 40)
                                 .listRowSeparator(.hidden)
@@ -79,20 +78,6 @@ struct SearchView: View {
                                 .onTapGesture {
                                     isPresenting = true
                                 }
-                            }
-
-                            if recentItems.isEmpty {
-                                VStack(alignment: .center) {
-                                    Text("최근 검색한 항목이 없습니다.")
-                                }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .font(.callout)
-                                    .foregroundStyle(.lbl2)
-                                    .listRowBackground(
-                                        Color.clear
-                                    )
-                                    .listRowSeparator(.hidden)
-                                    .padding(20)
                             }
 
                             ForEach(recentItems, id: \.self) {
@@ -137,11 +122,10 @@ struct SearchView: View {
 
                                 Spacer()
                             }
-                            .padding(.horizontal, 20)
+                            .padding(5)
                             .listRowBackground(
-                                RoundedRectangle(cornerRadius: 15)
-                                    .fill(.listStroke)
-                                    .padding(.horizontal, 20)
+                                RoundedRectangle(cornerRadius: 28)
+                                    .fill(.listBg)
                             )
                             .frame(height: 40)
                             .listRowSeparator(.hidden)
@@ -198,11 +182,10 @@ struct SearchView: View {
                                 .contentShape(Rectangle())
                                 .frame(width: 44, height: 44)
                             }
-                            .padding(.horizontal, 20)
+                            .padding(5)
                             .listRowBackground(
-                                RoundedRectangle(cornerRadius: 15)
+                                RoundedRectangle(cornerRadius: 28)
                                     .fill(.listBg)
-                                    .padding(.horizontal, 20)
                             )
                             .listRowSeparator(.hidden)
                             .padding(.vertical, 5)
@@ -238,7 +221,7 @@ struct SearchView: View {
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .combine)
                     }
-                    .listStyle(.plain)
+                    .listStyle(.insetGrouped)
                     .listRowSpacing(10)
                     .scrollContentBackground(.hidden)
                 }
