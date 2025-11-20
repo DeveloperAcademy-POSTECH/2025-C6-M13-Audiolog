@@ -25,6 +25,7 @@ struct AudiologView: View {
     @State private var isPresentingPlayerSheet: Bool = false
     @State private var isReprocessingPending = false
     @State private var isRecordCreated: Bool = false
+    @State private var isIntelligenceEnabled: Bool = false
 
     @State private var shortcutBridge = ShortcutBridge.shared
     @State private var startRecordingFromShortcut: Bool = false
@@ -53,7 +54,8 @@ struct AudiologView: View {
                 value: "전체 로그"
             ) {
                 ArchiveView(
-                    isRecordCreated: $isRecordCreated
+                    isRecordCreated: $isRecordCreated,
+                    isIntelligenceEnabled: $isIntelligenceEnabled
                 )
             }
             .badge(isRecordCreated ? Text("N") : nil)
@@ -73,7 +75,8 @@ struct AudiologView: View {
                 role: .search
             ) {
                 SearchView(
-                    externalQuery: $searchQueryFromShortcut
+                    externalQuery: $searchQueryFromShortcut,
+                    isIntelligenceEnabled: $isIntelligenceEnabled
                 )
             }
         }
