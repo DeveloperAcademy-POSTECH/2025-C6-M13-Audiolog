@@ -241,6 +241,11 @@ struct SearchView: View {
             .background(.bg1)
             .navigationTitle(navTitle)
         }
+        .overlay {
+            if audioProcessor.isLanguageModelAvailable {
+                GlownyEffect()
+            }
+        }
         .searchable(
             text: $searchText,
             prompt: audioProcessor.isLanguageModelAvailable
