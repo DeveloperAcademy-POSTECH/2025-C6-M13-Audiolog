@@ -24,6 +24,7 @@ struct SearchView: View {
     @State private var searchText: String = ""
     @State private var searchedText: String = ""
     @FocusState private var isSearchFocused: Bool
+    @State private var searchingWithAI: Bool = false
 
     @Binding var externalQuery: String
     @Binding var isIntelligenceEnabled: Bool
@@ -43,16 +44,12 @@ struct SearchView: View {
             .filter { !$0.isEmpty }
     }
 
-    private var filteredRecordings: [Recording] {
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return recordings }
-        return recordings.filter { $0.title.localizedStandardContains(q) }
-    }
+    @State private var filteredRecordings: [Recording] = []
 
     var body: some View {
         NavigationStack {
             VStack {
-                if searchText.isEmpty {
+                if searchedText.isEmpty {
                     List {
                         if !audioProcessor.isLanguageModelAvailable {
                             HStack(spacing: 10) {
@@ -241,6 +238,9 @@ struct SearchView: View {
             .background(.bg1)
             .navigationTitle(navTitle)
         }
+        .onChange(of: searchText) {
+            if searchText.isEmpty { searchedText = "" }
+        }
         .overlay {
             if audioProcessor.isLanguageModelAvailable {
                 GlownyEffect()
@@ -253,7 +253,26 @@ struct SearchView: View {
         )
         .searchFocused($isSearchFocused)
         .onSubmit(of: .search) {
-            saveRecent(searchText)
+            searchedText = searchText
+            if audioProcessor.isLanguageModelAvailable {
+                searchingWithAI = true
+
+                // TODO: FoundationModel 혹은 NaturalLanguage처리를 통해 연관있는 Recording들 가져오기
+                filteredRecordings = []
+
+                searchingWithAI = false
+            } else {
+                let q = searchedText.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+                filteredRecordings = recordings.filter {
+                    $0.title.localizedStandardContains(q)
+                }
+                return
+            }
+
+            return
+                saveRecent(searchedText)
         }
         .sheet(isPresented: $isPresenting) {
             AISuggestionView(isPresented: $isPresenting)
