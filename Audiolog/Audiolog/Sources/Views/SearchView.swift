@@ -387,7 +387,7 @@ struct SearchView: View {
                 for (index, recording) in recordings.enumerated() {
                     if Task.isCancelled { break }
 
-                    searchingIndex = index + 1
+                    searchingIndex = index
                     logger.log(
                         "[SearchView] Comparing (\(index + 1)/\(recordings.count))"
                     )
