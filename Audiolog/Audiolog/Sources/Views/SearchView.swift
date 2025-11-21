@@ -8,7 +8,6 @@
 import SwiftData
 import SwiftUI
 
-// AppStorage로 최근 검색 저장, 최대 5개
 private enum RecentSearch {
     static let data = "RecentSearch"
 }
@@ -23,6 +22,7 @@ struct SearchView: View {
     ]) private var recordings: [Recording]
 
     @State private var searchText: String = ""
+    @State private var searchedText: String = ""
     @FocusState private var isSearchFocused: Bool
 
     @Binding var externalQuery: String
@@ -32,7 +32,8 @@ struct SearchView: View {
     @AppStorage(RecentSearch.data) private var recentSearch: String = ""
 
     private var navTitle: String {
-        return searchText.isEmpty ? "최근 검색한 항목" : "\(filtered.count)개의 항목"
+        return searchText.isEmpty
+            ? "최근 검색한 항목" : "\(filteredRecordings.count)개의 항목"
     }
 
     private var recentItems: [String] {
@@ -42,7 +43,7 @@ struct SearchView: View {
             .filter { !$0.isEmpty }
     }
 
-    private var filtered: [Recording] {
+    private var filteredRecordings: [Recording] {
         let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return recordings }
         return recordings.filter { $0.title.localizedStandardContains(q) }
@@ -52,34 +53,44 @@ struct SearchView: View {
         NavigationStack {
             VStack {
                 if searchText.isEmpty {
-                    VStack {
-                        List {
-                            if !audioProcessor.isLanguageModelAvailable {
-                                HStack(spacing: 10) {
-                                    Image("Intelligence")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 30)
+                    List {
+                        if !audioProcessor.isLanguageModelAvailable {
+                            HStack(spacing: 10) {
+                                Image("Intelligence")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 30)
 
-                                    Text("Audiolog를 100% 활용해 보세요.")
-                                        .font(.callout)
-                                        .foregroundStyle(.lbl1)
+                                Text("Audiolog를 100% 활용해 보세요.")
+                                    .font(.callout)
+                                    .foregroundStyle(.lbl1)
 
-                                    Spacer()
-                                }
-                                .padding(5)
+                                Spacer()
+                            }
+                            .padding(5)
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 28)
+                                    .fill(.listBg)
+                            )
+                            .frame(height: 40)
+                            .listRowSeparator(.hidden)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                isPresenting = true
+                            }
+                        }
+
+                        if recentItems.isEmpty {
+                            Text("최근 검색한 항목이 없습니다.")
+                                .font(.callout)
+                                .foregroundStyle(.lbl2)
                                 .listRowBackground(
                                     RoundedRectangle(cornerRadius: 28)
-                                        .fill(.listBg)
+                                        .fill(.clear)
                                 )
-                                .frame(height: 40)
                                 .listRowSeparator(.hidden)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    isPresenting = true
-                                }
-                            }
-
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        } else {
                             ForEach(recentItems, id: \.self) {
                                 keyword in
                                 Button {
@@ -97,16 +108,8 @@ struct SearchView: View {
                             }
                             .onDelete(perform: removeRecent)
                         }
-                        .listStyle(.plain)
                     }
-                    .overlay(alignment: .center, content: {
-                        if recentItems.isEmpty {
-                            Text("최근 검색한 항목이 없습니다.")
-                                .font(.callout)
-                                .foregroundStyle(.lbl2)
-                        }
-                    })
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .listStyle(.plain)
                 } else {
                     List {
                         if !audioProcessor.isLanguageModelAvailable {
@@ -135,7 +138,7 @@ struct SearchView: View {
                             }
                         }
 
-                        ForEach(filtered) { item in
+                        ForEach(filteredRecordings) { item in
                             HStack {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 5) {
@@ -161,7 +164,7 @@ struct SearchView: View {
                                 }
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    audioPlayer.setPlaylist(filtered)
+                                    audioPlayer.setPlaylist(filteredRecordings)
                                     audioPlayer.load(item)
                                     audioPlayer.play()
                                 }
@@ -227,16 +230,13 @@ struct SearchView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                VStack {
-                    Spacer()
-                    if !isSearchFocused {
-                        MiniPlayerView()
-                    }
+                if !isSearchFocused {
+                    MiniPlayerView()
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 10)
+                        .padding(.horizontal, 20)
+                        .transition(.opacity)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 10)
-                .padding(.horizontal, 20)
-                .transition(.opacity)
             }
             .background(.bg1)
             .navigationTitle(navTitle)
@@ -268,7 +268,7 @@ struct SearchView: View {
             searchText = q
             saveRecent(q)
 
-            let results = filtered
+            let results = filteredRecordings
             if let first = results.first {
                 audioPlayer.setPlaylist(results)
                 audioPlayer.load(first)
