@@ -55,7 +55,7 @@ final class RecordingSearcher {
 
         let languageModelSession = LanguageModelSession(
             instructions: """
-                유저의 검색어와 오디오파일의 메타데이터를 비교해 비슷한 정도를 0.0 ~ 1.0 사이의 소수로 출력한다.
+                유저의 검색어와 음성일기의 메타데이터를 비교해 비슷한 정도를 0.0 ~ 1.0 사이의 소수로 출력한다.
 
                 출력형식:
                  - 예시: 0.0, 0.8, 1.0
@@ -68,8 +68,12 @@ final class RecordingSearcher {
 
         prompt += "유저 검색어: \(searchText) \n \n"
 
-        prompt += "녹음 메타데이터: [ \n"
+        prompt += "음성일기 메타데이터: [ \n"
         prompt += "제목: \(recording.title)"
+
+        if let dialog = recording.dialog {
+            prompt += "대화 내용: \(dialog) \n"
+        }
 
         if let bgmTitle = recording.bgmTitle,
             let bgmArtist = recording.bgmArtist
@@ -78,7 +82,7 @@ final class RecordingSearcher {
         }
 
         if let location = recording.location {
-            prompt += "위치: \(location)"
+            prompt += "위치: \(location) \n"
         }
 
         prompt += "생성일자: \(recording.createdAt) \n"
