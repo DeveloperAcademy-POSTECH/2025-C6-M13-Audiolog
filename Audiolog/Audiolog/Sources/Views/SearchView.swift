@@ -24,7 +24,6 @@ struct SearchView: View {
 
     @State private var searchText: String = ""
     @FocusState private var isSearchFocused: Bool
-    @State private var showSuggestion = true
 
     @Binding var externalQuery: String
     @Binding var isIntelligenceEnabled: Bool
@@ -50,13 +49,83 @@ struct SearchView: View {
     }
 
     var body: some View {
-        ZStack {
-            NavigationStack {
-                VStack {
-                    if searchText.isEmpty {
-                        Title(text: "최근 검색한 항목")
-                        if showSuggestion {
-                            HStack(spacing: 20) {
+        NavigationStack {
+            VStack {
+                if searchText.isEmpty {
+                    VStack {
+                        List {
+                            if !audioProcessor.isLanguageModelAvailable {
+                                HStack(spacing: 10) {
+                                    Image("Intelligence")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 30)
+
+                                    Text("Audiolog를 100% 활용해 보세요.")
+                                        .font(.callout)
+                                        .foregroundStyle(.lbl1)
+
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 20)
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 15)
+                                        .fill(.listStroke)
+                                        .padding(.horizontal, 20)
+                                )
+                                .frame(height: 40)
+                                .listRowSeparator(.hidden)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    isPresenting = true
+                                }
+                            }
+
+                            if recentItems.isEmpty {
+                                VStack(alignment: .center) {
+                                    Text("최근 검색한 항목이 없습니다.")
+                                }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .font(.callout)
+                                    .foregroundStyle(.lbl2)
+                                    .listRowBackground(
+                                        Color.clear
+                                    )
+                                    .listRowSeparator(.hidden)
+                                    .padding(20)
+                            }
+
+                            ForEach(recentItems, id: \.self) {
+                                keyword in
+                                Button {
+                                    searchText = keyword
+                                } label: {
+                                    Text(keyword)
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 10)
+                                }
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 15)
+                                        .fill(.bg1)
+                                        .padding(.horizontal, 20)
+                                )
+                            }
+                            .onDelete(perform: removeRecent)
+                        }
+                        .listStyle(.plain)
+                    }
+                    .overlay(alignment: .center, content: {
+                        if recentItems.isEmpty {
+                            Text("최근 검색한 항목이 없습니다.")
+                                .font(.callout)
+                                .foregroundStyle(.lbl2)
+                        }
+                    })
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List {
+                        if !audioProcessor.isLanguageModelAvailable {
+                            HStack(spacing: 10) {
                                 Image("Intelligence")
                                     .resizable()
                                     .scaledToFit()
@@ -67,213 +136,155 @@ struct SearchView: View {
                                     .foregroundStyle(.lbl1)
 
                                 Spacer()
-
-                                Button {
-                                    showSuggestion = false
-                                } label: {
-                                    Image(systemName: "xmark")
-                                        .font(
-                                            .system(
-                                                size: 12,
-                                                weight: .semibold
-                                            )
-                                        )
-                                        .foregroundStyle(.sub)
-                                        .frame(width: 24, height: 24)
-                                        .background(Color.white)
-                                        .clipShape(Circle())
-                                }
-                                .buttonStyle(.plain)
                             }
                             .padding(.horizontal, 20)
-                            .frame(height: 60)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 15)
                                     .fill(.listStroke)
+                                    .padding(.horizontal, 20)
                             )
-                            .padding(.horizontal, 20)
+                            .frame(height: 40)
+                            .listRowSeparator(.hidden)
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 isPresenting = true
                             }
                         }
-                        VStack {
-                            if recentItems.isEmpty {
-                                Text("최근 검색한 항목이 없습니다.")
-                                    .font(.callout)
-                                    .foregroundStyle(.lbl2)
-                                    .offset(x: 0, y: 0)
-                            } else {
-                                List {
-                                    ForEach(recentItems, id: \.self) {
-                                        keyword in
-                                        Button {
-                                            searchText = keyword
-                                        } label: {
-                                            Text(keyword)
-                                                .padding(.vertical, 10)
-                                        }
-                                        .listRowBackground(
-                                            Color.bg1
-                                                //                                        Rectangle().fill(.bg1)
-                                        )
-                                    }
-                                    .onDelete(perform: removeRecent)
-                                }
-                                .listStyle(.plain)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        Title(text: "검색 결과")
 
-                        HStack(spacing: 5) {
-                            Image(systemName: "magnifyingglass")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 18, height: 18)
-                            Text("\(filtered.count)개의 항목")
-                                .font(.callout.weight(.semibold))
-                        }
-                        .padding(.leading, 20)
-                        .foregroundStyle(.lbl2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                        List {
-                            ForEach(filtered) { item in
+                        ForEach(filtered) { item in
+                            HStack {
                                 HStack {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 5)
-                                        {
-                                            Text(
-                                                item.isTitleGenerated
-                                                    && !item.title.isEmpty
-                                                    ? item.title : "제목 생성중.."
-                                            )
-                                            .font(.callout)
-                                            .foregroundStyle(
-                                                item.isTitleGenerated
-                                                    ? .lbl1 : .lbl3
-                                            )
-
-                                            Text(
-                                                "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
-                                            )
-                                            .font(.subheadline)
-                                            .foregroundStyle(.lbl2)
-                                        }
-
-                                        Spacer()
-                                    }
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        audioPlayer.setPlaylist(filtered)
-                                        audioPlayer.load(item)
-                                        audioPlayer.play()
-                                    }
-
-                                    Button {
-                                        toggleFavorite(item)
-                                    } label: {
-                                        Image(
-                                            uiImage: UIImage(
-                                                named: item.isFavorite
-                                                    ? "FavoriteOn"
-                                                    : "FavoriteOff"
-                                            )!
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(
+                                            item.isTitleGenerated
+                                                && !item.title.isEmpty
+                                                ? item.title : "제목 생성중.."
                                         )
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 20, height: 20)
-                                    }
-                                    .contentShape(Rectangle())
-                                    .frame(width: 44, height: 44)
-                                }
-                                .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 15)
-                                        .fill(.listBg)
-                                )
-                                .listRowSeparator(.hidden)
-                                .padding(5)
-                                .swipeActions(
-                                    edge: .leading,
-                                    allowsFullSwipe: false
-                                ) {
-                                    Button {
-                                        toggleFavorite(item)
-                                    } label: {
-                                        VStack {
-                                            Image(
-                                                systemName: item.isFavorite
-                                                    ? "star.slash" : "star.fill"
-                                            )
-                                            Text(
-                                                item.isFavorite ? "해제" : "즐겨찾기"
-                                            )
-                                        }
+                                        .font(.callout)
+                                        .foregroundStyle(
+                                            item.isTitleGenerated
+                                                ? .lbl1 : .lbl3
+                                        )
+
+                                        Text(
+                                            "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
+                                        )
                                         .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .accessibilityElement(children: .ignore)
-                                        .accessibilityLabel(
-                                            Text(
-                                                "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
-                                            )
+                                        .foregroundStyle(.lbl2)
+                                    }
+
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    audioPlayer.setPlaylist(filtered)
+                                    audioPlayer.load(item)
+                                    audioPlayer.play()
+                                }
+
+                                Button {
+                                    toggleFavorite(item)
+                                } label: {
+                                    Image(
+                                        uiImage: UIImage(
+                                            named: item.isFavorite
+                                                ? "FavoriteOn" : "FavoriteOff"
+                                        )!
+                                    )
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 20, height: 20)
+                                }
+                                .contentShape(Rectangle())
+                                .frame(width: 44, height: 44)
+                            }
+                            .padding(.horizontal, 20)
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 15)
+                                    .fill(.listBg)
+                                    .padding(.horizontal, 20)
+                            )
+                            .listRowSeparator(.hidden)
+                            .padding(.vertical, 5)
+                            .swipeActions(
+                                edge: .leading,
+                                allowsFullSwipe: false
+                            ) {
+                                Button {
+                                    toggleFavorite(item)
+                                } label: {
+                                    VStack {
+                                        Image(
+                                            systemName: item.isFavorite
+                                                ? "star.slash" : "star.fill"
+                                        )
+                                        Text(
+                                            item.isFavorite ? "해제" : "즐겨찾기"
                                         )
                                     }
-                                    .tint(.main)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityElement(children: .ignore)
+                                    .accessibilityLabel(
+                                        Text(
+                                            "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                        )
+                                    )
                                 }
-                                .tag(item.id)
+                                .tint(.main)
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityElement(children: .combine)
+                            .tag(item.id)
                         }
-                        .padding(.horizontal, 20)
-                        .listStyle(.plain)
-                        .listRowSpacing(10)
-                        .scrollContentBackground(.hidden)
+                        .buttonStyle(.plain)
+                        .accessibilityElement(children: .combine)
+                    }
+                    .listStyle(.plain)
+                    .listRowSpacing(10)
+                    .scrollContentBackground(.hidden)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                VStack {
+                    Spacer()
+                    if !isSearchFocused {
+                        MiniPlayerView()
                     }
                 }
-                .overlay(alignment: .bottom) {
-                    VStack {
-                        Spacer()
-                        if !isSearchFocused {
-                            MiniPlayerView()
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.bottom, 10)
-                    .padding(.horizontal, 20)
-                    .transition(.opacity)
-                }
-                .background(.bg1)
+                .frame(maxWidth: .infinity)
+                .padding(.bottom, 10)
+                .padding(.horizontal, 20)
+                .transition(.opacity)
             }
-            .searchable(text: $searchText, prompt: "Search")
-            .searchFocused($isSearchFocused)
-            .onSubmit(of: .search) {
-                saveRecent(searchText)
-            }
-            .sheet(isPresented: $isPresenting) {
-                AISuggestionView(isPresented: $isPresenting)
-            }
-            .task(id: externalQuery) {
-                let q = externalQuery.trimmingCharacters(
-                    in: .whitespacesAndNewlines
-                )
-                guard !q.isEmpty else { return }
+            .background(.bg1)
+            .navigationTitle(navTitle)
+        }
+        .searchable(
+            text: $searchText,
+            prompt: audioProcessor.isLanguageModelAvailable
+                ? "어떤 추억을 찾아볼까요?" : "검색"
+        )
+        .searchFocused($isSearchFocused)
+        .onSubmit(of: .search) {
+            saveRecent(searchText)
+        }
+        .sheet(isPresented: $isPresenting) {
+            AISuggestionView(isPresented: $isPresenting)
+        }
+        .task(id: externalQuery) {
+            let q = externalQuery.trimmingCharacters(
+                in: .whitespacesAndNewlines
+            )
+            guard !q.isEmpty else { return }
 
-                // Intent에서 넘어온 검색어로 검색 시작
-                searchText = q
-                saveRecent(q)
+            // Intent에서 넘어온 검색어로 검색 시작
+            searchText = q
+            saveRecent(q)
 
-                let results = filtered
-                if let first = results.first {
-                    audioPlayer.setPlaylist(results)
-                    audioPlayer.load(first)
-                    audioPlayer.play()
-                }
-            }
-            if isSearchFocused {
-                EdgeGlow()
+            let results = filtered
+            if let first = results.first {
+                audioPlayer.setPlaylist(results)
+                audioPlayer.load(first)
+                audioPlayer.play()
             }
         }
     }
