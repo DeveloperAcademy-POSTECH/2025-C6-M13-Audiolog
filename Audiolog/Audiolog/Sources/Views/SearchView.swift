@@ -5,6 +5,7 @@
 //  Created by Sean Cho on 10/28/25.
 //
 
+import FoundationModels
 import SwiftData
 import SwiftUI
 
@@ -14,7 +15,8 @@ private enum RecentSearch {
 
 struct SearchView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
-    @Environment(AudioProcessor.self) private var audioProcessor
+
+    @State private var recordingSearcher = RecordingSearcher()
 
     @Environment(\.modelContext) private var modelContext
     @Query(sort: [
@@ -25,6 +27,8 @@ struct SearchView: View {
     @State private var searchedText: String = ""
     @FocusState private var isSearchFocused: Bool
     @State private var searchingWithAI: Bool = false
+    @State private var searchingIndex: Int = 0
+    @State private var searchTask: Task<Void, Never>?
 
     @Binding var externalQuery: String
     @Binding var isIntelligenceEnabled: Bool
@@ -50,48 +54,44 @@ struct SearchView: View {
         NavigationStack {
             VStack {
                 if searchedText.isEmpty {
-                    List {
-                        if !audioProcessor.isLanguageModelAvailable {
-                            HStack(spacing: 10) {
-                                Image("Intelligence")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 30)
+                    if recentItems.isEmpty {
+                        Text("최근 검색한 항목이 없습니다.")
+                            .font(.callout)
+                            .foregroundStyle(.lbl2)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List {
+                            if !recordingSearcher.isLanguageModelAvailable {
+                                HStack(spacing: 10) {
+                                    Image("Intelligence")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 30)
 
-                                Text("Audiolog를 100% 활용해 보세요.")
-                                    .font(.callout)
-                                    .foregroundStyle(.lbl1)
+                                    Text("Audiolog를 100% 활용해 보세요.")
+                                        .font(.callout)
+                                        .foregroundStyle(.lbl1)
 
-                                Spacer()
-                            }
-                            .padding(5)
-                            .listRowBackground(
-                                RoundedRectangle(cornerRadius: 28)
-                                    .fill(.listBg)
-                            )
-                            .frame(height: 40)
-                            .listRowSeparator(.hidden)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                isPresenting = true
-                            }
-                        }
-
-                        if recentItems.isEmpty {
-                            Text("최근 검색한 항목이 없습니다.")
-                                .font(.callout)
-                                .foregroundStyle(.lbl2)
+                                    Spacer()
+                                }
                                 .listRowBackground(
                                     RoundedRectangle(cornerRadius: 28)
-                                        .fill(.clear)
+                                        .fill(.listBg)
                                 )
+                                .frame(height: 40)
                                 .listRowSeparator(.hidden)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        } else {
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    isPresenting = true
+                                }
+                            }
+
                             ForEach(recentItems, id: \.self) {
                                 keyword in
                                 Button {
                                     searchText = keyword
+                                    performSearch()
+                                    isSearchFocused = false
                                 } label: {
                                     Text(keyword)
                                         .padding(.vertical, 10)
@@ -105,125 +105,144 @@ struct SearchView: View {
                             }
                             .onDelete(perform: removeRecent)
                         }
+                        .listStyle(.plain)
                     }
-                    .listStyle(.plain)
                 } else {
-                    List {
-                        if !audioProcessor.isLanguageModelAvailable {
-                            HStack(spacing: 10) {
-                                Image("Intelligence")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 30)
+                    if searchingWithAI {
+                        VStack(spacing: 10) {
+                            Text("항목을 탐색중입니다. 잠시만 기다려주세요.")
+                                .font(.callout)
+                                .foregroundStyle(.lbl2)
 
-                                Text("Audiolog를 100% 활용해 보세요.")
-                                    .font(.callout)
-                                    .foregroundStyle(.lbl1)
-
-                                Spacer()
-                            }
-                            .padding(5)
-                            .listRowBackground(
-                                RoundedRectangle(cornerRadius: 28)
-                                    .fill(.listBg)
+                            Text(
+                                "\(searchingIndex + 1) / \(recordings.count) 탐색중..."
                             )
-                            .frame(height: 40)
-                            .listRowSeparator(.hidden)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                isPresenting = true
-                            }
+                            .font(.callout)
+                            .foregroundStyle(.lbl2)
                         }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List {
+                            if !recordingSearcher.isLanguageModelAvailable {
+                                HStack(spacing: 10) {
+                                    Image("Intelligence")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 30)
 
-                        ForEach(filteredRecordings) { item in
-                            HStack {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(
-                                            item.isTitleGenerated
-                                                && !item.title.isEmpty
-                                                ? item.title : "제목 생성중.."
-                                        )
+                                    Text("Audiolog를 100% 활용해 보세요.")
                                         .font(.callout)
-                                        .foregroundStyle(
-                                            item.isTitleGenerated
-                                                ? .lbl1 : .lbl3
-                                        )
-
-                                        Text(
-                                            "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
-                                        )
-                                        .font(.subheadline)
-                                        .foregroundStyle(.lbl2)
-                                    }
+                                        .foregroundStyle(.lbl1)
 
                                     Spacer()
                                 }
+                                .padding(5)
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 28)
+                                        .fill(.listBg)
+                                )
+                                .frame(height: 40)
+                                .listRowSeparator(.hidden)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    audioPlayer.setPlaylist(filteredRecordings)
-                                    audioPlayer.load(item)
-                                    audioPlayer.play()
+                                    isPresenting = true
                                 }
-
-                                Button {
-                                    toggleFavorite(item)
-                                } label: {
-                                    Image(
-                                        uiImage: UIImage(
-                                            named: item.isFavorite
-                                                ? "FavoriteOn" : "FavoriteOff"
-                                        )!
-                                    )
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 20, height: 20)
-                                }
-                                .contentShape(Rectangle())
-                                .frame(width: 44, height: 44)
                             }
-                            .padding(5)
-                            .listRowBackground(
-                                RoundedRectangle(cornerRadius: 28)
-                                    .fill(.listBg)
-                            )
-                            .listRowSeparator(.hidden)
-                            .padding(.vertical, 5)
-                            .swipeActions(
-                                edge: .leading,
-                                allowsFullSwipe: false
-                            ) {
-                                Button {
-                                    toggleFavorite(item)
-                                } label: {
-                                    VStack {
-                                        Image(
-                                            systemName: item.isFavorite
-                                                ? "star.slash" : "star.fill"
+
+                            ForEach(filteredRecordings) { item in
+                                HStack {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 5)
+                                        {
+                                            Text(
+                                                item.isTitleGenerated
+                                                    && !item.title.isEmpty
+                                                    ? item.title : "제목 생성중.."
+                                            )
+                                            .font(.callout)
+                                            .foregroundStyle(
+                                                item.isTitleGenerated
+                                                    ? .lbl1 : .lbl3
+                                            )
+
+                                            Text(
+                                                "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
+                                            )
+                                            .font(.subheadline)
+                                            .foregroundStyle(.lbl2)
+                                        }
+
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        audioPlayer.setPlaylist(
+                                            filteredRecordings
                                         )
-                                        Text(
-                                            item.isFavorite ? "해제" : "즐겨찾기"
+                                        audioPlayer.load(item)
+                                        audioPlayer.play()
+                                    }
+
+                                    Button {
+                                        toggleFavorite(item)
+                                    } label: {
+                                        Image(
+                                            uiImage: UIImage(
+                                                named: item.isFavorite
+                                                    ? "FavoriteOn"
+                                                    : "FavoriteOff"
+                                            )!
+                                        )
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 20, height: 20)
+                                    }
+                                    .contentShape(Rectangle())
+                                    .frame(width: 44, height: 44)
+                                }
+                                .padding(5)
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 28)
+                                        .fill(.listBg)
+                                )
+                                .listRowSeparator(.hidden)
+                                .padding(.vertical, 5)
+                                .swipeActions(
+                                    edge: .leading,
+                                    allowsFullSwipe: false
+                                ) {
+                                    Button {
+                                        toggleFavorite(item)
+                                    } label: {
+                                        VStack {
+                                            Image(
+                                                systemName: item.isFavorite
+                                                    ? "star.slash" : "star.fill"
+                                            )
+                                            Text(
+                                                item.isFavorite ? "해제" : "즐겨찾기"
+                                            )
+                                        }
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityElement(children: .ignore)
+                                        .accessibilityLabel(
+                                            Text(
+                                                "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                            )
                                         )
                                     }
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .accessibilityElement(children: .ignore)
-                                    .accessibilityLabel(
-                                        Text(
-                                            "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
-                                        )
-                                    )
+                                    .tint(.main)
                                 }
-                                .tint(.main)
+                                .tag(item.id)
                             }
-                            .tag(item.id)
+                            .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityElement(children: .combine)
+                        .listStyle(.insetGrouped)
+                        .listRowSpacing(10)
+                        .scrollContentBackground(.hidden)
                     }
-                    .listStyle(.insetGrouped)
-                    .listRowSpacing(10)
-                    .scrollContentBackground(.hidden)
                 }
             }
             .overlay(alignment: .bottom) {
@@ -239,43 +258,32 @@ struct SearchView: View {
             .navigationTitle(navTitle)
         }
         .onChange(of: searchText) {
-            if searchText.isEmpty { searchedText = "" }
+            if searchText.isEmpty {
+                searchedText = ""
+                filteredRecordings = []
+                searchTask?.cancel()
+            }
         }
         .overlay {
-            if audioProcessor.isLanguageModelAvailable {
+            if searchingWithAI {
                 GlownyEffect()
+                    .transition(.opacity)
             }
         }
         .searchable(
             text: $searchText,
-            prompt: audioProcessor.isLanguageModelAvailable
+            prompt: recordingSearcher.isLanguageModelAvailable
                 ? "어떤 추억을 찾아볼까요?" : "검색"
         )
         .searchFocused($isSearchFocused)
         .onSubmit(of: .search) {
-            searchedText = searchText
-            if audioProcessor.isLanguageModelAvailable {
-                searchingWithAI = true
-
-                // TODO: FoundationModel 혹은 NaturalLanguage처리를 통해 연관있는 Recording들 가져오기
-                filteredRecordings = []
-
-                searchingWithAI = false
-            } else {
-                let q = searchedText.trimmingCharacters(
-                    in: .whitespacesAndNewlines
-                )
-                filteredRecordings = recordings.filter {
-                    $0.title.localizedStandardContains(q)
-                }
-                return
-            }
-
-            return
-                saveRecent(searchedText)
+            performSearch()
         }
         .sheet(isPresented: $isPresenting) {
             AISuggestionView(isPresented: $isPresenting)
+        }
+        .task {
+            await recordingSearcher.configureLanguageModelSession()
         }
         .task(id: externalQuery) {
             let q = externalQuery.trimmingCharacters(
@@ -283,7 +291,6 @@ struct SearchView: View {
             )
             guard !q.isEmpty else { return }
 
-            // Intent에서 넘어온 검색어로 검색 시작
             searchText = q
             saveRecent(q)
 
@@ -293,6 +300,9 @@ struct SearchView: View {
                 audioPlayer.load(first)
                 audioPlayer.play()
             }
+        }
+        .onDisappear {
+            searchTask?.cancel()
         }
     }
 
@@ -331,5 +341,46 @@ struct SearchView: View {
                 "[ArchiveView] favorite save failed: \(String(describing: error))"
             )
         }
+    }
+
+    private func performSearch() {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        searchedText = query
+
+        if recordingSearcher.isLanguageModelAvailable {
+            filteredRecordings = []
+
+            searchTask?.cancel()
+
+            searchTask = Task {
+                searchingWithAI = true
+                searchingIndex = 0
+
+                for (index, recording) in recordings.enumerated() {
+                    if Task.isCancelled { break }
+
+                    searchingIndex = index + 1
+                    logger.log(
+                        "[SearchView] Comparing (\(index + 1)/\(recordings.count))"
+                    )
+                    if await recordingSearcher.compare(
+                        searchText: query,
+                        recording: recording
+                    ) {
+                        filteredRecordings.append(recording)
+                    }
+                }
+
+                searchingWithAI = false
+            }
+        } else {
+            filteredRecordings = recordings.filter {
+                $0.title.localizedStandardContains(query)
+            }
+            saveRecent(searchedText)
+            return
+        }
+
+        saveRecent(searchedText)
     }
 }
