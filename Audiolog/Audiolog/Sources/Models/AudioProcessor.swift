@@ -15,7 +15,6 @@ import Speech
 @Observable
 final class AudioProcessor {
     var isLanguageModelAvailable: Bool = true
-    var languageModelSession: LanguageModelSession?
 
     init() {}
 
@@ -33,14 +32,10 @@ final class AudioProcessor {
             logger.log("[AudioProcessor] Language model is not available.")
             return
         }
-
-        self.languageModelSession = LanguageModelSession(
-            instructions: "주어지는 오디오 파일의 메타데이터를 정확하게 요약해서 10자 이내의 한국어 제목을 생성한다."
-        )
     }
 
     func generateTitle(recording: Recording) async {
-        guard let languageModelSession else {
+        guard isLanguageModelAvailable else {
             logger.log("[AudioProcessor] No Language Model Session.")
             recording.title = recording.location ?? "새로운 녹음"
             recording.isTitleGenerated = true
@@ -48,39 +43,45 @@ final class AudioProcessor {
             return
         }
 
-        var prompt = "[metadata] \n"
+        let languageModelSession = LanguageModelSession(
+            instructions: """
+                입력을 20자 이내로 요약한 한국어 제목을 출력한다.
 
-        if let dialog = recording.dialog, !dialog.isEmpty {
-            prompt += "대화 내용: \(dialog) \n"
-        }
+                출력형식:
+                 - 제목
+                 - 이유는 설명하지 않는다.
+                 - 제목외의 다른 메시지는 출력하지 않는다.
+                 - 특수문자를 사용하지 않는다.
+                """
+        )
+
+        let basePrompt = ""
+        var prompt = basePrompt
 
         if let bgmArtist = recording.bgmArtist,
             let bgmTitle = recording.bgmTitle
         {
-            prompt += "들리는 음악: \(bgmArtist)의 \(bgmTitle) \n"
-        }
+            prompt += "노래 \'\(bgmArtist)의 \(bgmTitle)\'"
 
-        if let tags = recording.tags, !tags.isEmpty {
-            prompt += "분류: \(tags.joined(separator: ", "))"
+        } else if let dialog = recording.dialog, !dialog.isEmpty {
+            prompt += "\"\(dialog)\""
+        } else if let tags = recording.tags, !tags.isEmpty, prompt == basePrompt {
+            prompt += "\(tags.joined(separator: ", ")) 감지됨"
+        } else if let weather = recording.weather, prompt == basePrompt {
+            prompt += "\(weather)"
         }
 
         logger.log("[AudioProcessor] Prompt: \(prompt)")
 
-        if prompt == "[metadata] \n" {
-            if let location = recording.location {
-                recording.title = "새로운 녹음, " + location
-            } else {
-                recording.title = "새로운 녹음"
-            }
-            recording.isTitleGenerated = true
-            return
-        }
-
         do {
             let response = try await languageModelSession.respond(to: prompt)
-            let title = response.content.trimmingCharacters(
+            var title = response.content.trimmingCharacters(
                 in: .whitespacesAndNewlines
             )
+
+            logger.log("[AudioProcessor] Generated title1: \(title)")
+
+            if title.count > 30 { title = "새로운 녹음" }
 
             if let location = recording.location {
                 recording.title = "\(title), " + location
@@ -88,7 +89,7 @@ final class AudioProcessor {
                 recording.title = title
             }
             recording.isTitleGenerated = true
-            logger.log("[AudioProcessor] Generated title: \(title)")
+            logger.log("[AudioProcessor] Generated title2: \(title)")
         } catch {
             logger.log("Title generation failed: \(error)")
         }
@@ -105,7 +106,7 @@ final class AudioProcessor {
                 classifierIdentifier: .version1
             )
 
-            let observer = TopTagsObserver(topK: 3, minConfidence: 0.7) {
+            let observer = TopTagsObserver(topK: 3, minConfidence: 0.9) {
                 tags in
                 logger.log(
                     "[AudioProcessor] Top tags: \(tags.joined(separator: ", "))"
@@ -329,10 +330,6 @@ final class AudioProcessor {
                 return nil
             }
 
-            logger.log(
-                "[Shazam] [read] chunk \(chunkIndex) - srcBuf.frameLength = \(srcBuf.frameLength)"
-            )
-
             dstBuf.frameLength = 0
             let block: AVAudioConverterInputBlock = { _, outStatus in
                 if srcBuf.frameLength == 0 {
@@ -347,10 +344,6 @@ final class AudioProcessor {
                 to: dstBuf,
                 error: nil,
                 withInputFrom: block
-            )
-
-            logger.log(
-                "[Shazam] [convert] chunk \(chunkIndex) - status=\(String(describing: status)), dstBuf.frameLength=\(dstBuf.frameLength)"
             )
 
             guard status != .error, dstBuf.frameLength > 0 else {
