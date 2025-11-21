@@ -128,16 +128,16 @@ struct PlaylistView: View {
                                     .scaledToFit()
                                     .frame(width: 20, height: 20)
                                 }
-                                .frame(width: 44, height: 44)
+                                .frame(width: 20, height: 44)
                                 .contentShape(Rectangle())
                                 .accessibilityHidden(true)
                             }
+                            .padding(5)
                             .listRowBackground(
-                                RoundedRectangle(cornerRadius: 15)
+                                RoundedRectangle(cornerRadius: 28)
                                     .fill(.listBg)
                             )
                             .listRowSeparator(.hidden)
-                            .padding(5)
                             .swipeActions(
                                 edge: .leading,
                                 allowsFullSwipe: false
@@ -162,8 +162,7 @@ struct PlaylistView: View {
                             .accessibilityAddTraits(.isButton)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .listStyle(.plain)
+                    .listStyle(.insetGrouped)
                     .listRowSpacing(10)
                     .scrollContentBackground(.hidden)
                     .scrollIndicators(.hidden)
