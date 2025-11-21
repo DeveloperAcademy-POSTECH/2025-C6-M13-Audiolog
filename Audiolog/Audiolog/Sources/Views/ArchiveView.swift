@@ -149,24 +149,27 @@ struct ArchiveView: View {
                                         audioPlayer.play()
                                     }
 
-                                    Button {
-                                        toggleFavorite(item)
-                                    } label: {
-                                        Image(
-                                            uiImage: UIImage(
-                                                named: item.isFavorite
+                                    if !isSelecting {
+                                        Button {
+                                            toggleFavorite(item)
+                                        } label: {
+                                            Image(
+                                                uiImage: UIImage(
+                                                    named: item.isFavorite
                                                     ? "FavoriteOn"
                                                     : "FavoriteOff"
-                                            )!
-                                        )
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 20, height: 20)
+                                                )!
+                                            )
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 20, height: 20)
+                                        }
+                                        .contentShape(Rectangle())
+                                        .frame(width: 44, height: 44, alignment: .trailing)
+                                        .disabled(isSelecting || editingId != nil)
+                                        .accessibilityHidden(true)
+                                        .transition(.move(edge: .trailing))
                                     }
-                                    .contentShape(Rectangle())
-                                    .frame(width: 44, height: 44, alignment: .trailing)
-                                    .disabled(isSelecting || editingId != nil)
-                                    .accessibilityHidden(true)
                                 }
                                 .padding(5)
                                 .listRowBackground(
