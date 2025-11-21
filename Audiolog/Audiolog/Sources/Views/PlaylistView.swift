@@ -135,8 +135,8 @@ struct PlaylistView: View {
                                         .scaledToFit()
                                         .frame(width: 20, height: 20)
                                     }
-                                    .frame(width: 20, height: 44)
                                     .contentShape(Rectangle())
+                                    .frame(width: 44, height: 44, alignment: .trailing)
                                     .accessibilityHidden(true)
                                 }
                                 .padding(5)

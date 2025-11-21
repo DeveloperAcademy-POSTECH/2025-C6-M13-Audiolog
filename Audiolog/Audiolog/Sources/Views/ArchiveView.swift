@@ -135,10 +135,15 @@ struct ArchiveView: View {
                                     }
                                     .contentShape(Rectangle())
                                     .onTapGesture {
-                                        guard editingId == nil, !isSelecting
-                                        else {
+                                        if isSelecting {
+                                            if selection.contains(item.id) {
+                                                selection.remove(item.id)
+                                            } else {
+                                                selection.insert(item.id)
+                                            }
                                             return
                                         }
+                                        guard editingId == nil else { return }
                                         audioPlayer.setPlaylist(recordings)
                                         audioPlayer.load(item)
                                         audioPlayer.play()
@@ -159,7 +164,7 @@ struct ArchiveView: View {
                                         .frame(width: 20, height: 20)
                                     }
                                     .contentShape(Rectangle())
-                                    .frame(width: 20, height: 44)
+                                    .frame(width: 44, height: 44, alignment: .trailing)
                                     .disabled(isSelecting || editingId != nil)
                                     .accessibilityHidden(true)
                                 }
