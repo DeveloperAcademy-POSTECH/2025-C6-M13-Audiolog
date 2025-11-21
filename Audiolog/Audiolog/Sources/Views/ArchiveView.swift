@@ -42,7 +42,7 @@ struct ArchiveView: View {
                     .foregroundColor(.sub)
                     .frame(width: 300, height: 300)
                     .cornerRadius(350)
-                    .blur(radius: 100)
+                    .blur(radius: 160)
                     .offset(x: -100, y: -320)
 
                 VStack(spacing: 0) {
