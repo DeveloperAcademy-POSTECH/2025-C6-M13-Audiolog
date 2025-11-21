@@ -61,7 +61,7 @@ struct ArchiveView: View {
                         Spacer()
                     } else {
                         List(selection: $selection) {
-                            if audioProcessor.isLanguageModelAvailable {
+                            if !audioProcessor.isLanguageModelAvailable {
                                 HStack(spacing: 10) {
                                     Image("Intelligence")
                                         .resizable()
