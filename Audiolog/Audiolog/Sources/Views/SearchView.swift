@@ -108,9 +108,7 @@ struct SearchView: View {
                                             .padding(.horizontal, 10)
                                     }
                                     .listRowBackground(
-                                        RoundedRectangle(cornerRadius: 15)
-                                            .fill(.bg1)
-                                            .padding(.horizontal, 20)
+                                        Color.clear
                                     )
                                 }
                                 .onDelete(perform: removeRecent)
@@ -132,133 +130,147 @@ struct SearchView: View {
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            List {
-                                if !recordingSearcher.isLanguageModelAvailable {
-                                    HStack(spacing: 10) {
-                                        Image("Intelligence")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 30)
-
-                                        Text("Audiolog를 100% 활용해 보세요.")
-                                            .font(.callout)
-                                            .foregroundStyle(.lbl1)
-
-                                        Spacer()
-                                    }
-                                    .padding(5)
-                                    .listRowBackground(
-                                        RoundedRectangle(cornerRadius: 28)
-                                            .fill(.listBg)
+                            if filteredRecordings.isEmpty {
+                                Text("검색된 항목이 없습니다.")
+                                    .font(.callout)
+                                    .foregroundStyle(.lbl2)
+                                    .frame(
+                                        maxWidth: .infinity,
+                                        maxHeight: .infinity
                                     )
-                                    .frame(height: 40)
-                                    .listRowSeparator(.hidden)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        isPresenting = true
-                                    }
-                                }
+                            } else {
+                                List {
+                                    if !recordingSearcher
+                                        .isLanguageModelAvailable
+                                    {
+                                        HStack(spacing: 10) {
+                                            Image("Intelligence")
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(width: 30)
 
-                                ForEach(filteredRecordings) { item in
-                                    HStack {
-                                        HStack {
-                                            VStack(
-                                                alignment: .leading,
-                                                spacing: 5
-                                            ) {
-                                                Text(
-                                                    item.isTitleGenerated
-                                                        && !item.title.isEmpty
-                                                        ? item.title
-                                                        : "제목 생성중.."
-                                                )
+                                            Text("Audiolog를 100% 활용해 보세요.")
                                                 .font(.callout)
-                                                .foregroundStyle(
-                                                    item.isTitleGenerated
-                                                        ? .lbl1 : .lbl3
-                                                )
-
-                                                Text(
-                                                    "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
-                                                )
-                                                .font(.subheadline)
-                                                .foregroundStyle(.lbl2)
-                                            }
+                                                .foregroundStyle(.lbl1)
 
                                             Spacer()
                                         }
+                                        .padding(5)
+                                        .listRowBackground(
+                                            RoundedRectangle(cornerRadius: 28)
+                                                .fill(.listBg)
+                                        )
+                                        .frame(height: 40)
+                                        .listRowSeparator(.hidden)
                                         .contentShape(Rectangle())
                                         .onTapGesture {
-                                            audioPlayer.setPlaylist(
-                                                filteredRecordings
-                                            )
-                                            audioPlayer.load(item)
-                                            audioPlayer.play()
+                                            isPresenting = true
                                         }
-
-                                        Button {
-                                            toggleFavorite(item)
-                                        } label: {
-                                            Image(
-                                                uiImage: UIImage(
-                                                    named: item.isFavorite
-                                                        ? "FavoriteOn"
-                                                        : "FavoriteOff"
-                                                )!
-                                            )
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 20, height: 20)
-                                        }
-                                        .contentShape(Rectangle())
-                                        .frame(width: 44, height: 44)
                                     }
-                                    .padding(5)
-                                    .listRowBackground(
-                                        RoundedRectangle(cornerRadius: 28)
-                                            .fill(.listBg)
-                                    )
-                                    .listRowSeparator(.hidden)
-                                    .padding(.vertical, 5)
-                                    .swipeActions(
-                                        edge: .leading,
-                                        allowsFullSwipe: false
-                                    ) {
-                                        Button {
-                                            toggleFavorite(item)
-                                        } label: {
-                                            VStack {
-                                                Image(
-                                                    systemName: item.isFavorite
-                                                        ? "star.slash"
-                                                        : "star.fill"
+
+                                    ForEach(filteredRecordings) { item in
+                                        HStack {
+                                            HStack {
+                                                VStack(
+                                                    alignment: .leading,
+                                                    spacing: 5
+                                                ) {
+                                                    Text(
+                                                        item.isTitleGenerated
+                                                            && !item.title
+                                                                .isEmpty
+                                                            ? item.title
+                                                            : "제목 생성중.."
+                                                    )
+                                                    .font(.callout)
+                                                    .foregroundStyle(
+                                                        item.isTitleGenerated
+                                                            ? .lbl1 : .lbl3
+                                                    )
+
+                                                    Text(
+                                                        "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
+                                                    )
+                                                    .font(.subheadline)
+                                                    .foregroundStyle(.lbl2)
+                                                }
+
+                                                Spacer()
+                                            }
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                audioPlayer.setPlaylist(
+                                                    filteredRecordings
                                                 )
-                                                Text(
-                                                    item.isFavorite
-                                                        ? "해제" : "즐겨찾기"
+                                                audioPlayer.load(item)
+                                                audioPlayer.play()
+                                            }
+
+                                            Button {
+                                                toggleFavorite(item)
+                                            } label: {
+                                                Image(
+                                                    uiImage: UIImage(
+                                                        named: item.isFavorite
+                                                            ? "FavoriteOn"
+                                                            : "FavoriteOff"
+                                                    )!
+                                                )
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(width: 20, height: 20)
+                                            }
+                                            .contentShape(Rectangle())
+                                            .frame(width: 44, height: 44)
+                                        }
+                                        .padding(5)
+                                        .listRowBackground(
+                                            RoundedRectangle(cornerRadius: 28)
+                                                .fill(.listBg)
+                                        )
+                                        .listRowSeparator(.hidden)
+                                        .padding(.vertical, 5)
+                                        .swipeActions(
+                                            edge: .leading,
+                                            allowsFullSwipe: false
+                                        ) {
+                                            Button {
+                                                toggleFavorite(item)
+                                            } label: {
+                                                VStack {
+                                                    Image(
+                                                        systemName: item
+                                                            .isFavorite
+                                                            ? "star.slash"
+                                                            : "star.fill"
+                                                    )
+                                                    Text(
+                                                        item.isFavorite
+                                                            ? "해제" : "즐겨찾기"
+                                                    )
+                                                }
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                                .accessibilityElement(
+                                                    children: .ignore
+                                                )
+                                                .accessibilityLabel(
+                                                    Text(
+                                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
+                                                    )
                                                 )
                                             }
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                            .accessibilityElement(
-                                                children: .ignore
-                                            )
-                                            .accessibilityLabel(
-                                                Text(
-                                                    "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
-                                                )
-                                            )
+                                            .tint(.main)
                                         }
-                                        .tint(.main)
+                                        .tag(item.id)
                                     }
-                                    .tag(item.id)
+                                    .buttonStyle(.plain)
+                                    .accessibilityElement(children: .combine)
                                 }
-                                .buttonStyle(.plain)
-                                .accessibilityElement(children: .combine)
+                                .listStyle(.insetGrouped)
+                                .listRowSpacing(10)
+                                .scrollContentBackground(.hidden)
                             }
-                            .listStyle(.insetGrouped)
-                            .listRowSpacing(10)
-                            .scrollContentBackground(.hidden)
                         }
                     }
                     if !isSearchFocused {
