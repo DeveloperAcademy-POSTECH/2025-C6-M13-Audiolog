@@ -216,7 +216,7 @@ struct RecordView: View {
             startRecording()
         }
     }
-    
+
     private func startRecording() {
         logger.log("[RecordView] Starting recording...")
 
@@ -232,7 +232,7 @@ struct RecordView: View {
             "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
         )
     }
-    
+
     private func stopRecording() async {
         let fileName = audioRecorder.fileName
         let documentURL = getDocumentURL()

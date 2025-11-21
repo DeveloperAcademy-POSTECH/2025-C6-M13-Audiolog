@@ -58,7 +58,7 @@ struct SearchView: View {
                     .frame(width: 300, height: 300)
                     .cornerRadius(350)
                     .blur(radius: 160)
-                    .offset(x: -100, y: -320)
+                    .offset(x: -100, y: -368)
                 VStack {
                     if searchedText.isEmpty {
                         if recentItems.isEmpty {
