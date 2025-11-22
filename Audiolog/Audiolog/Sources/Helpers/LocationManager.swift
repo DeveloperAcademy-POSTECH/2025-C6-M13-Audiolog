@@ -7,6 +7,7 @@
 
 import CoreLocation
 import Foundation
+import MapKit
 
 class LocationManager: NSObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
@@ -99,7 +100,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
             forHTTPHeaderField: "Authorization"
         )
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else {
                 self.fetchAddressFromCoreLocation(location) { fallback in
                     completion(fallback)
@@ -182,7 +183,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
             forHTTPHeaderField: "Authorization"
         )
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else {
                 self.fetchAddressFromCoreLocation(location) { fallback in
                     completion(fallback)
@@ -221,9 +222,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
             placemarks,
             error in
             guard error == nil, let place = placemarks?.first else {
-                self.onError?(
-                    "주소 변환 실패 \(error)"
-                )
+                self.onError?("주소 변환 실패: \(error?.localizedDescription ?? "unknown error")")
                 return
             }
 
