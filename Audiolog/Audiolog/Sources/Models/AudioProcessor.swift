@@ -45,7 +45,7 @@ final class AudioProcessor {
 
         let languageModelSession = LanguageModelSession(
             instructions: """
-                입력을 20자 이내로 요약한 한국어 제목을 출력한다.
+                입력을 30자 이내로 요약한 한국어 제목을 출력한다.
 
                 출력형식:
                  - 제목
@@ -81,7 +81,7 @@ final class AudioProcessor {
 
             logger.log("[AudioProcessor] Generated title1: \(title)")
 
-            if title.count > 30 { title = "새로운 녹음" }
+            if title.count > 35 { title = "새로운 녹음" }
 
             if let location = recording.location {
                 recording.title = "\(title), " + location
