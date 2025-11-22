@@ -47,20 +47,20 @@ struct PlaylistView: View {
                                     .cornerRadius(15)
                                     .frame(width: 80, height: 80)
                                     .accessibilityHidden(true)
-                                
+
                                 VStack(alignment: .leading, spacing: 0) {
                                     Text(playlistTitle)
                                         .font(.body.weight(.semibold))
                                         .foregroundColor(.lbl1)
-                                    
+
                                     Text("\(recordings.count)개")
                                         .font(.footnote.weight(.semibold))
                                         .foregroundColor(.lbl2)
                                 }
                                 .accessibilityElement(children: .combine)
-                                
+
                                 Spacer()
-                                
+
                                 Button {
                                     audioPlayer.setPlaylist(recordings)
                                     audioPlayer.load(recordings[0])
@@ -71,7 +71,7 @@ struct PlaylistView: View {
                                             .resizable()
                                             .scaledToFit()
                                             .frame(width: 12)
-                                        
+
                                         Text("재생")
                                             .font(.footnote.weight(.semibold))
                                     }
@@ -85,22 +85,23 @@ struct PlaylistView: View {
                                 Rectangle().fill(.clear).frame(height: 80)
                             )
                             .listRowSeparator(.hidden)
-                            
+
                             ForEach(recordings) { item in
                                 HStack {
                                     HStack {
-                                        VStack(alignment: .leading, spacing: 5) {
+                                        VStack(alignment: .leading, spacing: 5)
+                                        {
                                             Text(
                                                 item.isTitleGenerated
-                                                && !item.title.isEmpty
-                                                ? item.title : "제목 생성중.."
+                                                    && !item.title.isEmpty
+                                                    ? item.title : "제목 생성중.."
                                             )
                                             .font(.callout)
                                             .foregroundStyle(
                                                 item.isTitleGenerated
-                                                ? .lbl1 : .lbl3
+                                                    ? .lbl1 : .lbl3
                                             )
-                                            
+
                                             Text(
                                                 "\(item.createdAt.formatted("M월 d일 EEEE, a h:mm")) · \(item.formattedDuration)"
                                             )
@@ -112,7 +113,7 @@ struct PlaylistView: View {
                                                 )
                                             )
                                         }
-                                        
+
                                         Spacer()
                                     }
                                     .contentShape(Rectangle())
@@ -121,14 +122,15 @@ struct PlaylistView: View {
                                         audioPlayer.load(item)
                                         audioPlayer.play()
                                     }
-                                    
+
                                     Button {
                                         toggleFavorite(item)
                                     } label: {
                                         Image(
                                             uiImage: UIImage(
                                                 named: item.isFavorite
-                                                ? "FavoriteOn" : "FavoriteOff"
+                                                    ? "FavoriteOn"
+                                                    : "FavoriteOff"
                                             )!
                                         )
                                         .resizable()
@@ -136,7 +138,11 @@ struct PlaylistView: View {
                                         .frame(width: 20, height: 20)
                                     }
                                     .contentShape(Rectangle())
-                                    .frame(width: 44, height: 44, alignment: .trailing)
+                                    .frame(
+                                        width: 44,
+                                        height: 44,
+                                        alignment: .trailing
+                                    )
                                     .accessibilityHidden(true)
                                 }
                                 .padding(5)
@@ -155,10 +161,11 @@ struct PlaylistView: View {
                                         VStack {
                                             Image(
                                                 systemName: item.isFavorite
-                                                ? "star.slash" : "star.fill"
+                                                    ? "star.slash" : "star.fill"
                                             )
                                             Text(
-                                                item.isFavorite ? "즐겨찾기 해제" : "즐겨찾기"
+                                                item.isFavorite
+                                                    ? "즐겨찾기 해제" : "즐겨찾기"
                                             )
                                         }
                                     }
@@ -174,7 +181,7 @@ struct PlaylistView: View {
                         .scrollContentBackground(.hidden)
                         .scrollIndicators(.hidden)
                     }
-                    
+
                     MiniPlayerView()
                         .frame(maxWidth: .infinity)
                         .padding(.bottom, 10)
