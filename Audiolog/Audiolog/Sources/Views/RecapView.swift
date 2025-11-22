@@ -42,7 +42,7 @@ struct RecapView: View {
                     .cornerRadius(350)
                     .blur(radius: 160)
                     .offset(x: -100, y: -368)
-                
+
                 ScrollView(.vertical, showsIndicators: false) {
                     let columns = [
                         GridItem(.flexible(), spacing: 20),
@@ -50,7 +50,7 @@ struct RecapView: View {
                     ]
                     LazyVGrid(columns: columns, spacing: 20) {
                         let thumbnailName = "Thumbnail0"
-                        
+
                         NavigationLink {
                             let favoriteRecordings = recordings.filter {
                                 ($0 as Recording).isFavorite == true
@@ -74,10 +74,13 @@ struct RecapView: View {
                                     .foregroundStyle(.white)
                             }
                         }
-                        
+
                         ForEach(recordingCollections, id: \.self) { tag in
-                            let asciiSum = tag.unicodeScalars.map { Int($0.value) }.reduce(0, +)
-                            let thumbnailName = "Thumbnail\(((asciiSum % 7) + 1))"
+                            let asciiSum = tag.unicodeScalars.map {
+                                Int($0.value)
+                            }.reduce(0, +)
+                            let thumbnailName =
+                                "Thumbnail\(((asciiSum % 7) + 1))"
                             NavigationLink {
                                 let filteredRecordings = recordings.filter {
                                     recording in

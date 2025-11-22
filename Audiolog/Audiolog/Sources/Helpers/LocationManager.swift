@@ -19,7 +19,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
     }
-    
+
     func locationManager(
         _ manager: CLLocationManager,
         didUpdateLocations locations: [CLLocation]
@@ -66,7 +66,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
 
-   private func fetchBuildingNameFromKakao(
+    private func fetchBuildingNameFromKakao(
         latitude: Double,
         longitude: Double,
         location: CLLocation,
@@ -114,7 +114,8 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
                     if let address = documents.first?["address"]
                         as? [String: Any]
                     {
-                        let region2 = address["region_2depth_name"] as? String ?? ""
+                        let region2 =
+                            address["region_2depth_name"] as? String ?? ""
                         let city: String
 
                         if region2.contains(" ") {

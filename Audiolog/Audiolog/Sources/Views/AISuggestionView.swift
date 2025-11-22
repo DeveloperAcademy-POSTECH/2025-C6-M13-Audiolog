@@ -10,7 +10,7 @@ import SwiftUI
 struct AISuggestionView: View {
     @Environment(\.openURL) var openURL
     @Binding var isPresented: Bool
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 40) {
             HStack {
