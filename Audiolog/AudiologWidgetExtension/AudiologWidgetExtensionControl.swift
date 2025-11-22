@@ -19,15 +19,11 @@ struct AudiologWidgetExtensionControl: ControlWidget {
                 "녹음 시작",
                 action: StartRecordingIntent()
             ) { _ in
-                Label("녹음 시작", systemImage: "ear")
-//                Label {
-//                    Text("녹음 시작")
-//                } icon: {
-//                    Image("QuickActionIcon")
-//                        .resizable()
-//                        .scaledToFit()
-//                        .frame(width: 50, height: 50)
-//                }
+                Label {
+                    Text("녹음 시작")
+                } icon: {
+                    Image("Audiolog")
+                }
             }
         }
         .displayName("녹음 시작")
