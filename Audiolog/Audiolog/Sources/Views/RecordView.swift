@@ -105,7 +105,7 @@ struct RecordView: View {
                             ? formattedDateString(
                                 fromPTS: audioRecorder.firstBufferPTS
                             )
-                            : "기억하고 싶은 소리를\n담아보세요"
+                            : String(localized: "기억하고 싶은 소리를 담아보세요")
                     )
                     .opacity(audioRecorder.isRecording ? 0 : 1)
                     .padding(.top, 30)

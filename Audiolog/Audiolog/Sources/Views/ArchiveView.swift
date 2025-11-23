@@ -33,7 +33,12 @@ struct ArchiveView: View {
     @State private var isSelecting: Bool = false
 
     private var navTitle: String {
-        return selection.isEmpty ? "전체 로그" : "\(selection.count)개 선택됨"
+        if selection.isEmpty {
+            return String(localized: "전체 로그")
+        } else {
+            let format = String(localized: "%lld개 선택됨")
+            return String(format: format, selection.count)
+        }
     }
     var body: some View {
         NavigationStack {

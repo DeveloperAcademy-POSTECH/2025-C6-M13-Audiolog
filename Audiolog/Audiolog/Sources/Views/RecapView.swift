@@ -122,7 +122,7 @@ struct RecapView: View {
                     .padding(.horizontal, 20)
                     .transition(.opacity)
                 }
-                .navigationTitle("추천 로그")
+                .navigationTitle(String(localized: "추천 로그"))
                 .frame(maxWidth: .infinity)
             }
         }

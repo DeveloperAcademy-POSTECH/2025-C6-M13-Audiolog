@@ -37,8 +37,12 @@ struct SearchView: View {
     @AppStorage(RecentSearch.data) private var recentSearch: String = ""
 
     private var navTitle: String {
-        return searchText.isEmpty
-            ? "최근 검색한 항목" : "\(filteredRecordings.count)개의 항목"
+        if searchText.isEmpty {
+            return String(localized: "최근 검색한 항목")
+        } else {
+            let format = String(localized: "%lld개의 항목")
+            return String(format: format, filteredRecordings.count)
+        }
     }
 
     private var recentItems: [String] {
