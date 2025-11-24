@@ -307,16 +307,12 @@
         }
       }
     },
-    "기억하고 싶은 소리를 \n담아보세요" : {
-
-    },
-    "기억하고 싶은 소리를 \\n담아보세요" : {
-      "extractionState" : "manual",
+    "기억하고 싶은 소리를\n담아보세요" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "Capture the sounds you want to remember."
+            "state" : "translated",
+            "value" : "Capture the sounds \nyou want to remember."
           }
         }
       }
