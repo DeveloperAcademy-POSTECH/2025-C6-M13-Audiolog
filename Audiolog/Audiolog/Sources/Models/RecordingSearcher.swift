@@ -34,7 +34,7 @@ final class RecordingSearcher {
     func compare(
         searchText: String,
         recording: Recording,
-        threshold: Float = 0.8
+        threshold: Float = 0.7
     ) async -> Bool {
         let loweredSearch = searchText.trimmingCharacters(
             in: .whitespacesAndNewlines

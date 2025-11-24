@@ -63,11 +63,17 @@ final class AudioProcessor {
         {
             prompt += "노래 \'\(bgmArtist)의 \(bgmTitle)\'"
 
-        } else if let dialog = recording.dialog, !dialog.isEmpty {
+        }
+        
+        if let dialog = recording.dialog, !dialog.isEmpty {
             prompt += "\"\(dialog)\""
-        } else if let tags = recording.tags, !tags.isEmpty, prompt == basePrompt {
+        }
+        
+        if let tags = recording.tags, !tags.isEmpty, prompt == basePrompt {
             prompt += "\(tags.joined(separator: ", ")) 감지됨"
-        } else if let weather = recording.weather, prompt == basePrompt {
+        }
+        
+        if let weather = recording.weather, prompt == basePrompt {
             prompt += "\(weather)"
         }
 
@@ -106,7 +112,7 @@ final class AudioProcessor {
                 classifierIdentifier: .version1
             )
 
-            let observer = TopTagsObserver(topK: 3, minConfidence: 0.9) {
+            let observer = TopTagsObserver(topK: 3) {
                 tags in
                 logger.log(
                     "[AudioProcessor] Top tags: \(tags.joined(separator: ", "))"
