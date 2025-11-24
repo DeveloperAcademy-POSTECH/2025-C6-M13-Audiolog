@@ -112,7 +112,6 @@ struct RecordView: View {
                     .accessibilityFocused($voFocused)
                     Spacer()
                 }
-                .accessibilitySortPriority(1)
 
                 VStack {
                     HStack(spacing: 10) {
@@ -128,6 +127,7 @@ struct RecordView: View {
                     }
                     .padding(.top, screenHeight / 5)
                     .opacity(audioRecorder.isRecording ? 1 : 0)
+                    .accessibilityHidden(true)
 
                     Spacer()
                 }

@@ -45,6 +45,8 @@ struct MiniPlayerView: View {
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(.lbl3)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(Text("\(formatTime(audioPlayer.currentDuration)) 중 \(formatTime(audioPlayer.currentPlaybackTime))"))
                 }
             } else {
                 VStack(alignment: .leading, spacing: 0) {
@@ -68,6 +70,7 @@ struct MiniPlayerView: View {
                     .font(.caption.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(.lbl3)
+                    .accessibilityHidden(true)
                 }
             }
             Spacer()
@@ -96,6 +99,7 @@ struct MiniPlayerView: View {
             }
             .tint(audioPlayer.playlist.isEmpty ? .lbl2 : .lbl1)
             .disabled(audioPlayer.playlist.isEmpty)
+            .accessibilityLabel(Text("다음"))
         }
         .padding(.horizontal, 20)
         .frame(height: 68)

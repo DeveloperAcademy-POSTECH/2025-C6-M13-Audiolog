@@ -43,6 +43,16 @@
         }
       }
     },
+    "%@ 중 %@" : {
+      "localizations" : {
+        "ko" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ 중 %2$@"
+          }
+        }
+      }
+    },
     "%lld / %lld 탐색중..." : {
       "localizations" : {
         "en" : {
@@ -390,6 +400,9 @@
           }
         }
       }
+    },
+    "다음" : {
+
     },
     "빠른 녹음" : {
       "localizations" : {

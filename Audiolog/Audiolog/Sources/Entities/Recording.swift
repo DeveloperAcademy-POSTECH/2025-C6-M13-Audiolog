@@ -53,6 +53,6 @@ extension Recording {
     var formattedDuration: String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
-        return String(format: "%d:%02d", minutes, seconds)
+        return String(format: "%d분 %02d초", minutes, seconds)
     }
 }
