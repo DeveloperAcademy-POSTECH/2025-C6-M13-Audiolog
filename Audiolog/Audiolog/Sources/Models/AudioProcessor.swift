@@ -1,11 +1,12 @@
 //
-//  AudioProcesser.swift
+//  AudioProcessor.swift
 //  Audiolog
 //
 //  Created by 성현 on 11/6/25.
 //
 
 @preconcurrency import AVFoundation
+import ChatGPTSwift
 import FoundationModels
 import ShazamKit
 import SoundAnalysis
@@ -13,9 +14,8 @@ import Speech
 
 @MainActor
 @Observable
-final class AudioProcesser {
+final class AudioProcessor {
     var isLanguageModelAvailable: Bool = true
-    var languageModelSession: LanguageModelSession?
 
     init() {}
 
@@ -33,14 +33,10 @@ final class AudioProcesser {
             logger.log("[AudioProcessor] Language model is not available.")
             return
         }
-
-        self.languageModelSession = LanguageModelSession(
-            instructions: "주어지는 오디오 파일의 메타데이터를 정확하게 요약해서 10자 이내의 한국어 제목을 생성한다."
-        )
     }
 
     func generateTitle(recording: Recording) async {
-        guard let languageModelSession else {
+        guard isLanguageModelAvailable else {
             logger.log("[AudioProcessor] No Language Model Session.")
             recording.title = recording.location ?? "새로운 녹음"
             recording.isTitleGenerated = true
@@ -48,37 +44,71 @@ final class AudioProcesser {
             return
         }
 
-        var prompt = "[metadata] \n"
+        let instruction = """
+            입력을 30자 이내로 요약한 한국어 제목을 출력한다.
 
-        if let dialog = recording.dialog, !dialog.isEmpty {
-            prompt += "대화 내용: \(dialog) \n"
-        }
+            출력형식:
+             제목
+
+            규칙:
+             이유는 설명하지 않는다.
+             제목외의 다른 메시지는 출력하지 않는다.
+             특수문자를 사용하지 않는다.
+            """
+
+        let basePrompt = ""
+        var prompt = basePrompt
 
         if let bgmArtist = recording.bgmArtist,
             let bgmTitle = recording.bgmTitle
         {
-            prompt += "들리는 음악: \(bgmArtist)의 \(bgmTitle) \n"
+            prompt += "노래 \'\(bgmArtist)의 \(bgmTitle)\'"
+
         }
 
-        if let tags = recording.tags, !tags.isEmpty {
-            prompt += "분류: \(tags.joined(separator: ", "))"
+        if let dialog = recording.dialog, !dialog.isEmpty {
+            prompt += "\"\(dialog)\""
+        }
+
+        if let tags = recording.tags, !tags.isEmpty, prompt == basePrompt {
+            prompt += "\(tags.joined(separator: ", ")) 감지됨"
+        }
+
+        if let weather = recording.weather, prompt == basePrompt {
+            prompt += "\(weather)"
         }
 
         logger.log("[AudioProcessor] Prompt: \(prompt)")
 
-        if prompt == "[metadata] \n" {
-            if let location = recording.location {
-                recording.title = "새로운 녹음, " + location
-            } else {
-                recording.title = "새로운 녹음"
-            }
-            recording.isTitleGenerated = true
-            return
-        }
-
         do {
-            let response = try await languageModelSession.respond(to: prompt)
-            let title = response.content.trimmingCharacters(
+            var title = ""
+
+            if let response = await generateTitleWithGPT(
+                instruction: instruction,
+                prompt: prompt
+            ) {
+                title = response
+                logger.log(
+                    "[AudioProcessor] Generated title with GPT: \(title)"
+                )
+            } else {
+                if isLanguageModelAvailable {
+                    let languageModelSession = LanguageModelSession(
+                        instructions: instruction
+                    )
+                    let response = try await languageModelSession.respond(
+                        to: prompt
+                    )
+                    title = response.content
+                    logger.log(
+                        "[AudioProcessor] Generated title with Foundation Model: \(title)"
+                    )
+                } else {
+                    title = "새로운 녹음"
+                }
+            }
+
+            title = title.trimmingCharacters(
                 in: .whitespacesAndNewlines
             )
 
@@ -88,7 +118,6 @@ final class AudioProcesser {
                 recording.title = title
             }
             recording.isTitleGenerated = true
-            logger.log("[AudioProcessor] Generated title: \(title)")
         } catch {
             logger.log("Title generation failed: \(error)")
         }
@@ -105,7 +134,7 @@ final class AudioProcesser {
                 classifierIdentifier: .version1
             )
 
-            let observer = TopTagsObserver(topK: 3, minConfidence: 0.7) {
+            let observer = TopTagsObserver(topK: 3) {
                 tags in
                 logger.log(
                     "[AudioProcessor] Top tags: \(tags.joined(separator: ", "))"
@@ -191,10 +220,10 @@ final class AudioProcesser {
                     item.artist ?? recording.bgmArtist
             }
             logger.log(
-                "[AudioProcesser] (4.5) ShazamKit 매칭: \(item.title ?? "?") - \(item.artist ?? "?")"
+                "[AudioProcessor] (4.5) ShazamKit 매칭: \(item.title ?? "?") - \(item.artist ?? "?")"
             )
         } else {
-            logger.log("[AudioProcesser] (4.5) ShazamKit 매칭 결과 없음")
+            logger.log("[AudioProcessor] (4.5) ShazamKit 매칭 결과 없음")
         }
     }
 
@@ -329,10 +358,6 @@ final class AudioProcesser {
                 return nil
             }
 
-            logger.log(
-                "[Shazam] [read] chunk \(chunkIndex) - srcBuf.frameLength = \(srcBuf.frameLength)"
-            )
-
             dstBuf.frameLength = 0
             let block: AVAudioConverterInputBlock = { _, outStatus in
                 if srcBuf.frameLength == 0 {
@@ -347,10 +372,6 @@ final class AudioProcesser {
                 to: dstBuf,
                 error: nil,
                 withInputFrom: block
-            )
-
-            logger.log(
-                "[Shazam] [convert] chunk \(chunkIndex) - status=\(String(describing: status)), dstBuf.frameLength=\(dstBuf.frameLength)"
             )
 
             guard status != .error, dstBuf.frameLength > 0 else {
@@ -403,6 +424,31 @@ final class AudioProcesser {
         let signature = generator.signature()
 
         return signature
+    }
+    
+    private func generateTitleWithGPT(instruction: String, prompt: String) async
+        -> String?
+    {
+
+        guard
+            let apiKey = Bundle.main.object(
+                forInfoDictionaryKey: "GPT_API_KEY"
+            ) as? String
+        else { return nil }
+
+        let api = ChatGPTAPI(
+            apiKey: apiKey
+        )
+
+        guard
+            let response = try? await api.sendMessage(
+                text: prompt,
+                model: "gpt-5-nano",
+                systemText: instruction
+            )
+        else { return nil }
+
+        return response
     }
 }
 

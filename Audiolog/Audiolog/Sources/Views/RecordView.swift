@@ -42,9 +42,9 @@ struct RecordView: View {
             ZStack {
                 Rectangle()
                     .foregroundColor(.sub)
-                    .frame(width: 400, height: 400)
+                    .frame(width: 300, height: 300)
                     .cornerRadius(350)
-                    .blur(radius: 150)
+                    .blur(radius: 160)
                     .offset(x: -100, y: -320)
 
                 Circle()
@@ -105,7 +105,7 @@ struct RecordView: View {
                             ? formattedDateString(
                                 fromPTS: audioRecorder.firstBufferPTS
                             )
-                            : "기억하고 싶은 소리를\n담아보세요"
+                            : String(localized: "기억하고 싶은 소리를 \n담아보세요")
                     )
                     .opacity(audioRecorder.isRecording ? 0 : 1)
                     .padding(.top, 30)
@@ -221,7 +221,7 @@ struct RecordView: View {
             startRecording()
         }
     }
-    
+
     private func startRecording() {
         logger.log("[RecordView] Starting recording...")
 
@@ -237,7 +237,7 @@ struct RecordView: View {
             "[RecordView] Recording started. isRecording=\(audioRecorder.isRecording))"
         )
     }
-    
+
     private func stopRecording() async {
         let fileName = audioRecorder.fileName
         let documentURL = getDocumentURL()

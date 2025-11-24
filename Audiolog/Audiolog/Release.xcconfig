@@ -9,4 +9,4 @@
 // https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
 
 KAKAO_REST_API_KEY = $(KAKAO_REST_API_KEY)
- 
+GPT_API_KEY = $(GPT_API_KEY)

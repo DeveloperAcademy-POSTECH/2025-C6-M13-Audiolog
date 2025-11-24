@@ -1,9 +1,8 @@
 {
   "images" : [
     {
-      "filename" : "aimagicstick_lightx1.png",
-      "idiom" : "universal",
-      "scale" : "1x"
+      "filename" : "Property 1=Group 2085665159.svg",
+      "idiom" : "universal"
     },
     {
       "appearances" : [
@@ -12,41 +11,8 @@
           "value" : "dark"
         }
       ],
-      "filename" : "aimagicstick_darkx1.png",
-      "idiom" : "universal",
-      "scale" : "1x"
-    },
-    {
-      "filename" : "aimagicstick_lightx2.png",
-      "idiom" : "universal",
-      "scale" : "2x"
-    },
-    {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "dark"
-        }
-      ],
-      "filename" : "aimagicstick_darkx2.png",
-      "idiom" : "universal",
-      "scale" : "2x"
-    },
-    {
-      "filename" : "aimagicstick_lightx3.png",
-      "idiom" : "universal",
-      "scale" : "3x"
-    },
-    {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "dark"
-        }
-      ],
-      "filename" : "aimagicstick_darkx3.png",
-      "idiom" : "universal",
-      "scale" : "3x"
+      "filename" : "Property 1=Variant4.svg",
+      "idiom" : "universal"
     }
   ],
   "info" : {

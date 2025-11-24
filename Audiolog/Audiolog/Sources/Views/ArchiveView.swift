@@ -10,6 +10,8 @@ import SwiftUI
 
 struct ArchiveView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
+    @Environment(AudioProcessor.self) private var audioProcessor
+
     @Environment(\.modelContext) private var modelContext
 
     @Query(sort: [
@@ -19,7 +21,6 @@ struct ArchiveView: View {
     @Binding var isRecordCreated: Bool
     @Binding var isIntelligenceEnabled: Bool
     @State private var isPresenting = false
-    @State private var showSuggestion = true
 
     @State private var editingId: UUID?
     @State private var tempTitle: String = ""
@@ -32,17 +33,22 @@ struct ArchiveView: View {
     @State private var isSelecting: Bool = false
 
     private var navTitle: String {
-        return selection.isEmpty ? "전체 로그" : "\(selection.count)개 선택됨"
+        if selection.isEmpty {
+            return String(localized: "전체 로그")
+        } else {
+            let format = String(localized: "%lld개 선택됨")
+            return String(format: format, selection.count)
+        }
     }
     var body: some View {
         NavigationStack {
             ZStack {
                 Rectangle()
                     .foregroundColor(.sub)
-                    .frame(width: 400, height: 400)
+                    .frame(width: 300, height: 300)
                     .cornerRadius(350)
-                    .blur(radius: 100)
-                    .offset(x: -100, y: -320)
+                    .blur(radius: 160)
+                    .offset(x: -100, y: -368)
 
                 VStack(spacing: 0) {
                     if recordings.isEmpty {
@@ -60,7 +66,7 @@ struct ArchiveView: View {
                         Spacer()
                     } else {
                         List(selection: $selection) {
-                            if showSuggestion {
+                            if !audioProcessor.isLanguageModelAvailable {
                                 HStack(spacing: 10) {
                                     Image("Intelligence")
                                         .resizable()
@@ -72,30 +78,14 @@ struct ArchiveView: View {
                                         .foregroundStyle(.lbl1)
 
                                     Spacer()
-
-                                    Button {
-                                        showSuggestion = false
-                                    } label: {
-                                        Image(systemName: "xmark")
-                                            .font(
-                                                .system(
-                                                    size: 12,
-                                                    weight: .semibold
-                                                )
-                                            )
-                                            .foregroundStyle(.sub)
-                                            .frame(width: 24, height: 24)
-                                            .background(Color.white)
-                                            .clipShape(Circle())
-                                    }
-                                    .buttonStyle(.plain)
                                 }
-                                .frame(height: 60)
-                                .padding(.horizontal, 10)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(.listStroke)
+                                .padding(5)
+                                .listRowBackground(
+                                    RoundedRectangle(cornerRadius: 28)
+                                        .fill(.listBg)
                                 )
+                                .frame(height: 40)
+                                .listRowSeparator(.hidden)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     isPresenting = true
@@ -150,40 +140,48 @@ struct ArchiveView: View {
                                     }
                                     .contentShape(Rectangle())
                                     .onTapGesture {
-                                        guard editingId == nil, !isSelecting
-                                        else {
+                                        if isSelecting {
+                                            if selection.contains(item.id) {
+                                                selection.remove(item.id)
+                                            } else {
+                                                selection.insert(item.id)
+                                            }
                                             return
                                         }
+                                        guard editingId == nil else { return }
                                         audioPlayer.setPlaylist(recordings)
                                         audioPlayer.load(item)
                                         audioPlayer.play()
                                     }
 
-                                    Button {
-                                        toggleFavorite(item)
-                                    } label: {
-                                        Image(
-                                            uiImage: UIImage(
-                                                named: item.isFavorite
+                                    if !isSelecting {
+                                        Button {
+                                            toggleFavorite(item)
+                                        } label: {
+                                            Image(
+                                                uiImage: UIImage(
+                                                    named: item.isFavorite
                                                     ? "FavoriteOn"
                                                     : "FavoriteOff"
-                                            )!
-                                        )
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 20, height: 20)
+                                                )!
+                                            )
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 20, height: 20)
+                                        }
+                                        .contentShape(Rectangle())
+                                        .frame(width: 44, height: 44, alignment: .trailing)
+                                        .disabled(isSelecting || editingId != nil)
+                                        .accessibilityHidden(true)
+                                        .transition(.move(edge: .trailing))
                                     }
-                                    .contentShape(Rectangle())
-                                    .frame(width: 44, height: 44)
-                                    .disabled(isSelecting || editingId != nil)
-                                    .accessibilityHidden(true)
                                 }
+                                .padding(5)
                                 .listRowBackground(
-                                    RoundedRectangle(cornerRadius: 15)
+                                    RoundedRectangle(cornerRadius: 28)
                                         .fill(.listBg)
                                 )
                                 .listRowSeparator(.hidden)
-                                .padding(.vertical, 5)
                                 .swipeActions(
                                     edge: .leading,
                                     allowsFullSwipe: false
@@ -269,6 +267,7 @@ struct ArchiveView: View {
                     }
                 }
             }
+            .listStyle(.insetGrouped)
             .listRowSpacing(10)
             .scrollContentBackground(.hidden)
             .alert("현재 녹음을 삭제하겠습니까?", isPresented: $isShowingDeleteAlert) {

@@ -14,40 +14,29 @@ struct AudiologWidgetExtensionControl: ControlWidget {
         StaticControlConfiguration(
             kind: "SeanCho.Audiolog.AudiologWidgetExtension251117",
             provider: Provider()
-        ) { value in
-            ControlWidgetToggle(
-                "Start Timer",
-                isOn: value,
-                action: StartTimerIntent()
-            ) { isRunning in
-                Label(isRunning ? "On" : "Off", systemImage: "timer")
+        ) { _ in
+            ControlWidgetButton(
+                "녹음 시작",
+                action: StartRecordingIntent()
+            ) { _ in
+                Label {
+                    Text("녹음 시작")
+                } icon: {
+                    Image("Audiolog")
+                }
             }
         }
-        .displayName("Timer")
-        .description("A an example control that runs a timer.")
+        .displayName("녹음 시작")
+        .description("누르면 녹음을 시작합니다.")
     }
 }
 
 extension AudiologWidgetExtensionControl {
     struct Provider: ControlValueProvider {
-        var previewValue: Bool {
-            false
-        }
+        var previewValue: Bool { false }
 
         func currentValue() async throws -> Bool {
-            let isRunning = true // Check if the timer is running
-            return isRunning
+            return false
         }
-    }
-}
-
-struct StartTimerIntent: SetValueIntent {
-    static let title: LocalizedStringResource = "Start a timer"
-
-    @Parameter(title: "Timer is running")
-    var value: Bool
-
-    func perform() async throws -> some IntentResult {
-        return .result()
     }
 }

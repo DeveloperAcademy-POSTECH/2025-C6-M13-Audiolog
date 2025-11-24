@@ -7,6 +7,7 @@
 
 import CoreLocation
 import Foundation
+import MapKit
 
 class LocationManager: NSObject, CLLocationManagerDelegate {
     private var locationManager = CLLocationManager()
@@ -19,7 +20,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
     }
-    
+
     func locationManager(
         _ manager: CLLocationManager,
         didUpdateLocations locations: [CLLocation]
@@ -66,7 +67,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
         }
     }
 
-   private func fetchBuildingNameFromKakao(
+    private func fetchBuildingNameFromKakao(
         latitude: Double,
         longitude: Double,
         location: CLLocation,
@@ -99,7 +100,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
             forHTTPHeaderField: "Authorization"
         )
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else {
                 self.fetchAddressFromCoreLocation(location) { fallback in
                     completion(fallback)
@@ -114,7 +115,8 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
                     if let address = documents.first?["address"]
                         as? [String: Any]
                     {
-                        let region2 = address["region_2depth_name"] as? String ?? ""
+                        let region2 =
+                            address["region_2depth_name"] as? String ?? ""
                         let city: String
 
                         if region2.contains(" ") {
@@ -181,7 +183,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
             forHTTPHeaderField: "Authorization"
         )
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else {
                 self.fetchAddressFromCoreLocation(location) { fallback in
                     completion(fallback)
@@ -220,9 +222,7 @@ class LocationManager: NSObject, CLLocationManagerDelegate {
             placemarks,
             error in
             guard error == nil, let place = placemarks?.first else {
-                self.onError?(
-                    "주소 변환 실패 \(error)"
-                )
+                self.onError?("주소 변환 실패: \(error?.localizedDescription ?? "unknown error")")
                 return
             }
 
