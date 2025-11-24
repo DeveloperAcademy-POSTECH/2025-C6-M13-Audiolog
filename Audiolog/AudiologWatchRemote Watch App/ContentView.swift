@@ -45,7 +45,7 @@ struct ContentView: View {
                 HStack(alignment: .center, spacing: 10) {
                     switch phase {
                     case .idle:
-                        Text("기억하고 싶은 소리를\n담아보세요")
+                        Text("기억하고 싶은 소리를 \n담아보세요")
                             .font(.body.weight(.semibold))
                             .foregroundColor(.white)
 
