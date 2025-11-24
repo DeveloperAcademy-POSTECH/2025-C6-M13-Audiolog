@@ -6,6 +6,7 @@
 //
 
 @preconcurrency import AVFoundation
+import ChatGPTSwift
 import FoundationModels
 import ShazamKit
 import SoundAnalysis
@@ -43,17 +44,17 @@ final class AudioProcessor {
             return
         }
 
-        let languageModelSession = LanguageModelSession(
-            instructions: """
-                입력을 30자 이내로 요약한 한국어 제목을 출력한다.
+        let instruction = """
+            입력을 30자 이내로 요약한 한국어 제목을 출력한다.
 
-                출력형식:
-                 - 제목
-                 - 이유는 설명하지 않는다.
-                 - 제목외의 다른 메시지는 출력하지 않는다.
-                 - 특수문자를 사용하지 않는다.
-                """
-        )
+            출력형식:
+             제목
+
+            규칙:
+             이유는 설명하지 않는다.
+             제목외의 다른 메시지는 출력하지 않는다.
+             특수문자를 사용하지 않는다.
+            """
 
         let basePrompt = ""
         var prompt = basePrompt
@@ -64,15 +65,15 @@ final class AudioProcessor {
             prompt += "노래 \'\(bgmArtist)의 \(bgmTitle)\'"
 
         }
-        
+
         if let dialog = recording.dialog, !dialog.isEmpty {
             prompt += "\"\(dialog)\""
         }
-        
+
         if let tags = recording.tags, !tags.isEmpty, prompt == basePrompt {
             prompt += "\(tags.joined(separator: ", ")) 감지됨"
         }
-        
+
         if let weather = recording.weather, prompt == basePrompt {
             prompt += "\(weather)"
         }
@@ -80,14 +81,36 @@ final class AudioProcessor {
         logger.log("[AudioProcessor] Prompt: \(prompt)")
 
         do {
-            let response = try await languageModelSession.respond(to: prompt)
-            var title = response.content.trimmingCharacters(
+            var title = ""
+
+            if let response = await generateTitleWithGPT(
+                instruction: instruction,
+                prompt: prompt
+            ) {
+                title = response
+                logger.log(
+                    "[AudioProcessor] Generated title with GPT: \(title)"
+                )
+            } else {
+                if isLanguageModelAvailable {
+                    let languageModelSession = LanguageModelSession(
+                        instructions: instruction
+                    )
+                    let response = try await languageModelSession.respond(
+                        to: prompt
+                    )
+                    title = response.content
+                    logger.log(
+                        "[AudioProcessor] Generated title with Foundation Model: \(title)"
+                    )
+                } else {
+                    title = "새로운 녹음"
+                }
+            }
+
+            title = title.trimmingCharacters(
                 in: .whitespacesAndNewlines
             )
-
-            logger.log("[AudioProcessor] Generated title1: \(title)")
-
-            if title.count > 35 { title = "새로운 녹음" }
 
             if let location = recording.location {
                 recording.title = "\(title), " + location
@@ -95,7 +118,6 @@ final class AudioProcessor {
                 recording.title = title
             }
             recording.isTitleGenerated = true
-            logger.log("[AudioProcessor] Generated title2: \(title)")
         } catch {
             logger.log("Title generation failed: \(error)")
         }
@@ -402,6 +424,31 @@ final class AudioProcessor {
         let signature = generator.signature()
 
         return signature
+    }
+    
+    private func generateTitleWithGPT(instruction: String, prompt: String) async
+        -> String?
+    {
+
+        guard
+            let apiKey = Bundle.main.object(
+                forInfoDictionaryKey: "GPT_API_KEY"
+            ) as? String
+        else { return nil }
+
+        let api = ChatGPTAPI(
+            apiKey: apiKey
+        )
+
+        guard
+            let response = try? await api.sendMessage(
+                text: prompt,
+                model: "gpt-5-nano",
+                systemText: instruction
+            )
+        else { return nil }
+
+        return response
     }
 }
 
