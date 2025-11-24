@@ -222,6 +222,12 @@ class AudioPlayer: NSObject, AVAudioPlayerDelegate {
             return MPRemoteCommandHandlerStatus.success
         }
 
+        center.togglePlayPauseCommand.isEnabled = true
+            center.togglePlayPauseCommand.addTarget { [weak self] _ in
+                self?.togglePlayPause()
+                return .success
+            }
+
         center.nextTrackCommand.addTarget {
             (_) -> MPRemoteCommandHandlerStatus in
             self.playNextInPlaylist()

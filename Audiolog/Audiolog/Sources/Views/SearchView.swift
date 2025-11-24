@@ -197,6 +197,11 @@ struct SearchView: View {
                                                     )
                                                     .font(.subheadline)
                                                     .foregroundStyle(.lbl2)
+                                                    .accessibilityLabel(
+                                                        Text(
+                                                            "\(item.createdAt.formatted("M월 d일 EEEE a h시 mm분")) \(item.formattedDuration)"
+                                                        )
+                                                    )
                                                 }
 
                                                 Spacer()
@@ -257,11 +262,6 @@ struct SearchView: View {
                                                 .foregroundStyle(.secondary)
                                                 .accessibilityElement(
                                                     children: .ignore
-                                                )
-                                                .accessibilityLabel(
-                                                    Text(
-                                                        "\(item.createdAt.formatted("M월 d일 EEEE a h:mm")) \(item.formattedDuration)"
-                                                    )
                                                 )
                                             }
                                             .tint(.main)
