@@ -35,7 +35,16 @@ final class AudioProcessor {
         }
     }
 
-    func generateTitle(recording: Recording) async {
+    func generateTitle(recording: Recording, isDummy: Bool = true) async {
+        if isDummy {
+            Task {
+                try await Task.sleep(for: .seconds(3))
+                recording.title = "웅성거리는 대화 소리, 포항시 포항공대제1융합관"
+                recording.isTitleGenerated = true
+            }
+            return
+        }
+
         guard isLanguageModelAvailable else {
             logger.log("[AudioProcessor] No Language Model Session.")
             recording.title = recording.location ?? "새로운 녹음"

@@ -200,7 +200,7 @@ struct AudiologView: View {
                     await audioProcessor.classify(recording: recording)
                     await audioProcessor.transcribe(recording: recording)
                     await audioProcessor.shazam(recording: recording)
-                    await audioProcessor.generateTitle(recording: recording)
+                    await audioProcessor.generateTitle(recording: recording, isDummy: true)
 
                     try? modelContext.save()
                     logger.log(
