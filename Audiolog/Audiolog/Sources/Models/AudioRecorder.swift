@@ -41,9 +41,6 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             audioDevice = audioCaptureDevice
         }
 
-        spatialAudioDataOutput = AVCaptureAudioDataOutput()
-        stereoAudioDataOutput = AVCaptureAudioDataOutput()
-
         spatialAudioMetaDataSampleGenerator =
             AVCaptureSpatialAudioMetadataSampleGenerator()
 
@@ -61,7 +58,9 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             }
 
             // 이미 오디오 output이 붙어 있으면 다시 구성하지 않음
-            if session.outputs.contains(where: { $0 is AVCaptureAudioDataOutput }) {
+            if session.outputs.contains(where: {
+                $0 is AVCaptureAudioDataOutput
+            }) {
                 return
             }
 
@@ -72,35 +71,65 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
 
             // 입력 추가
             if let audioDevice {
-                guard let audioDeviceInput = try? AVCaptureDeviceInput(device: audioDevice)
+                guard
+                    let audioDeviceInput = try? AVCaptureDeviceInput(
+                        device: audioDevice
+                    )
                 else { return }
 
                 if session.canAddInput(audioDeviceInput) {
                     session.addInput(audioDeviceInput)
 
-                    if audioDeviceInput.isMultichannelAudioModeSupported(.firstOrderAmbisonics) {
-                        audioDeviceInput.multichannelAudioMode = .firstOrderAmbisonics
+                    if audioDeviceInput.isMultichannelAudioModeSupported(
+                        .firstOrderAmbisonics
+                    ) {
+                        audioDeviceInput.multichannelAudioMode =
+                            .firstOrderAmbisonics
+
+                        spatialAudioDataOutput = AVCaptureAudioDataOutput()
+                        stereoAudioDataOutput = AVCaptureAudioDataOutput()
+
+                        if let stereoAudioDataOutput, let spatialAudioDataOutput
+                        {
+                            if session.canAddOutput(spatialAudioDataOutput) {
+                                session.addOutput(spatialAudioDataOutput)
+                            }
+
+                            if session.canAddOutput(stereoAudioDataOutput) {
+                                session.addOutput(stereoAudioDataOutput)
+                            }
+
+                            spatialAudioDataOutput.setSampleBufferDelegate(
+                                self,
+                                queue: self.sessionQueue
+                            )
+                            stereoAudioDataOutput.setSampleBufferDelegate(
+                                self,
+                                queue: self.sessionQueue
+                            )
+                        }
+                    } else if audioDeviceInput.isMultichannelAudioModeSupported(
+                        .stereo
+                    ) {
+                        audioDeviceInput.multichannelAudioMode = .stereo
+
+                        stereoAudioDataOutput = AVCaptureAudioDataOutput()
+
+                        if let stereoAudioDataOutput {
+                            if session.canAddOutput(stereoAudioDataOutput) {
+                                session.addOutput(stereoAudioDataOutput)
+                            }
+
+                            stereoAudioDataOutput.setSampleBufferDelegate(
+                                self,
+                                queue: self.sessionQueue
+                            )
+                        }
                     }
                 }
             }
-
-            // 출력 추가
-            if let stereoAudioDataOutput, let spatialAudioDataOutput {
-                if session.canAddOutput(spatialAudioDataOutput) {
-                    session.addOutput(spatialAudioDataOutput)
-                }
-
-                if session.canAddOutput(stereoAudioDataOutput) {
-                    session.addOutput(stereoAudioDataOutput)
-                }
-
-                // ✅ delegate도 같은 큐에서 설정
-                spatialAudioDataOutput.setSampleBufferDelegate(self, queue: self.sessionQueue)
-                stereoAudioDataOutput.setSampleBufferDelegate(self, queue: self.sessionQueue)
-            }
         }
     }
-
 
     func startRecording() {
         sessionQueue.async { [self] in
@@ -200,6 +229,14 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                 self.assetWriter?.startSession(
                     atSourceTime: sampleBuffer.presentationTimeStamp
                 )
+            } else if let stereoOutput = stereoAudioDataOutput {
+                self.setupAssetWriterWithStereoAudioOutput(stereoOutput)
+
+                self.assetWriter?.startWriting()
+
+                self.assetWriter?.startSession(
+                    atSourceTime: sampleBuffer.presentationTimeStamp
+                )
             }
         }
 
@@ -241,13 +278,103 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                     }
                 }
             }
-        }
+        } else if let formatDescription = CMSampleBufferGetFormatDescription(
+            sampleBuffer
+        ), let stereoInput = assetWriterStereoAudioInput {
+            let currentPTS = CMSampleBufferGetPresentationTimeStamp(
+                sampleBuffer
+            )
+            if self.firstBufferPTS == nil {
+                self.firstBufferPTS = currentPTS
+            }
+            if let startPTS = self.firstBufferPTS, currentPTS.isValid,
+                startPTS.isValid
+            {
+                let elapsed = CMTimeSubtract(currentPTS, startPTS)
+                let seconds = CMTimeGetSeconds(elapsed)
+                if seconds.isFinite && seconds >= 0 {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.timeElapsed = seconds
+                    }
+                }
+            }
 
+            let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
+
+            if mediaType == kCMMediaType_Audio {
+                if stereoInput.isReadyForMoreMediaData {
+                    if output == self.stereoAudioDataOutput {
+                        stereoInput.append(sampleBuffer)
+                    }
+                }
+            }
+        }
     }
 
     private func generateFileName() -> String {
         let randomURL = UUID().uuidString + ".mp4"
         return randomURL
+    }
+
+    private func setupAssetWriterWithStereoAudioOutput(
+        _ stereoAudioOutput: AVCaptureAudioDataOutput
+    ) {
+        self.fileName = generateFileName()
+        let documentURL = getDocumentURL()
+        let fileURL = documentURL.appendingPathComponent(fileName)
+
+        self.assetWriter = try? AVAssetWriter(url: fileURL, fileType: .mp4)
+
+        let assetWriterStereoAudioSettings =
+            stereoAudioOutput.recommendedAudioSettingsForAssetWriter(
+                writingTo: .mp4
+            )
+
+        self.assetWriterStereoAudioInput = AVAssetWriterInput(
+            mediaType: AVMediaType.audio,
+            outputSettings: assetWriterStereoAudioSettings
+        )
+        self.assetWriterStereoAudioInput?.expectsMediaDataInRealTime = true
+
+        if let assetWriter, let assetWriterStereoAudioInput,
+            assetWriter.canAdd(assetWriterStereoAudioInput)
+        {
+            assetWriter.add(assetWriterStereoAudioInput)
+        }
+
+        let spatialAudioMetadataFormatDescription = self
+            .spatialAudioMetaDataSampleGenerator!
+            .timedMetadataSampleBufferFormatDescription
+
+        self.assetWriterMetadataInput = AVAssetWriterInput(
+            mediaType: .metadata,
+            outputSettings: nil,
+            sourceFormatHint: spatialAudioMetadataFormatDescription
+        )
+        self.assetWriterMetadataInput?.expectsMediaDataInRealTime = true
+
+        if let assetWriter, let assetWriterMetadataInput,
+            assetWriter.canAdd(assetWriterMetadataInput)
+        {
+            assetWriter.add(assetWriterMetadataInput)
+
+            if let assetWriterSpatialAudioInput,
+                assetWriterMetadataInput.canAddTrackAssociation(
+                    withTrackOf: assetWriterSpatialAudioInput,
+                    type: AVAssetTrack.AssociationType.metadataReferent.rawValue
+                )
+            {
+                assetWriterMetadataInput.addTrackAssociation(
+                    withTrackOf: assetWriterSpatialAudioInput,
+                    type: AVAssetTrack.AssociationType.metadataReferent.rawValue
+                )
+            }
+        }
+
+        if let assetWriterStereoAudioInput {
+            assetWriterStereoAudioInput.marksOutputTrackAsEnabled = true
+            assetWriterStereoAudioInput.marksOutputTrackAsEnabled = false
+        }
     }
 
     private func setupAssetWriterWithSpatialAndStereoAudioOutput(
@@ -334,9 +461,7 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
 
             assetWriterSpatialAudioInput.languageCode = "und"
             assetWriterSpatialAudioInput.extendedLanguageTag = "und"
-
         }
-
     }
 
     private func appendSpatialAudioMetadataSample() {
@@ -362,15 +487,17 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             generator.analyzeAudioSample(sampleBuffer)
             sampleBufferToWrite = createAudioSampleBufferCopy(sampleBuffer)
         } else {
-            sampleBufferToWrite = createSpatialAudioSampleBufferCopy(sampleBuffer)
+            sampleBufferToWrite = createSpatialAudioSampleBufferCopy(
+                sampleBuffer
+            )
         }
 
         guard isRecordForCallBacks,
-              let buffer = sampleBufferToWrite else { return }
+            let buffer = sampleBufferToWrite
+        else { return }
 
         self.assetWriterSpatialAudioInput?.append(buffer)
     }
-
 
     private func createSpatialAudioSampleBufferCopy(
         _ sampleBuffer: CMSampleBuffer
