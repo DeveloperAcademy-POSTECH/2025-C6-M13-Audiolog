@@ -194,6 +194,11 @@ struct RecordView: View {
                     await stopRecording()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .remoteStopRecording)) { _ in
+                if audioRecorder.isRecording {
+                    Task { await stopRecording() }
+                }
+            }
         }
         .accessibilityAction(.magicTap) {
             handleRecordButtonTapped()

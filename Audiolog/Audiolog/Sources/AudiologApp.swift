@@ -7,10 +7,15 @@
 
 import SwiftData
 import SwiftUI
+import WatchConnectivity
 
 @main
 struct AudiologApp: App {
-    @State private var shortcutBridge = ShortcutBridge()
+    @State private var shortcutBridge = ShortcutBridge.shared
+
+    init() {
+        PhoneWCSessionManager.shared.activate()
+    }
 
     var body: some Scene {
         WindowGroup {

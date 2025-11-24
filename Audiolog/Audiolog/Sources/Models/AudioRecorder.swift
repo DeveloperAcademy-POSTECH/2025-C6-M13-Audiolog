@@ -51,58 +51,56 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
     }
 
     func setupCaptureSession() {
-        if let spatialAudioDataOutput, let stereoAudioDataOutput {
-            spatialAudioDataOutput.spatialAudioChannelLayoutTag =
-                (kAudioChannelLayoutTag_HOA_ACN_SN3D | 4)
-            stereoAudioDataOutput.spatialAudioChannelLayoutTag =
-                kAudioChannelLayoutTag_Stereo
-        }
+        // ✅ 모든 세션 작업을 sessionQueue에서 처리
+        sessionQueue.async { [self] in
+            if let spatialAudioDataOutput, let stereoAudioDataOutput {
+                spatialAudioDataOutput.spatialAudioChannelLayoutTag =
+                    (kAudioChannelLayoutTag_HOA_ACN_SN3D | 4)
+                stereoAudioDataOutput.spatialAudioChannelLayoutTag =
+                    kAudioChannelLayoutTag_Stereo
+            }
 
-        session.beginConfiguration()
+            // 이미 오디오 output이 붙어 있으면 다시 구성하지 않음
+            if session.outputs.contains(where: { $0 is AVCaptureAudioDataOutput }) {
+                return
+            }
 
-        if let audioDevice {
-            guard
-                let audioDeviceInput = try? AVCaptureDeviceInput(
-                    device: audioDevice
-                )
-            else { return }
+            session.beginConfiguration()
+            defer {
+                session.commitConfiguration()
+            }
 
-            if session.canAddInput(audioDeviceInput) {
-                session.addInput(audioDeviceInput)
+            // 입력 추가
+            if let audioDevice {
+                guard let audioDeviceInput = try? AVCaptureDeviceInput(device: audioDevice)
+                else { return }
 
-                if audioDeviceInput.isMultichannelAudioModeSupported(
-                    .firstOrderAmbisonics
-                ) {
-                    audioDeviceInput.multichannelAudioMode =
-                        .firstOrderAmbisonics
+                if session.canAddInput(audioDeviceInput) {
+                    session.addInput(audioDeviceInput)
+
+                    if audioDeviceInput.isMultichannelAudioModeSupported(.firstOrderAmbisonics) {
+                        audioDeviceInput.multichannelAudioMode = .firstOrderAmbisonics
+                    }
                 }
             }
-        }
 
-        if let stereoAudioDataOutput, let spatialAudioDataOutput {
-            if session.canAddOutput(spatialAudioDataOutput) {
-                session.addOutput(spatialAudioDataOutput)
+            // 출력 추가
+            if let stereoAudioDataOutput, let spatialAudioDataOutput {
+                if session.canAddOutput(spatialAudioDataOutput) {
+                    session.addOutput(spatialAudioDataOutput)
+                }
+
+                if session.canAddOutput(stereoAudioDataOutput) {
+                    session.addOutput(stereoAudioDataOutput)
+                }
+
+                // ✅ delegate도 같은 큐에서 설정
+                spatialAudioDataOutput.setSampleBufferDelegate(self, queue: self.sessionQueue)
+                stereoAudioDataOutput.setSampleBufferDelegate(self, queue: self.sessionQueue)
             }
-
-            if session.canAddOutput(stereoAudioDataOutput) {
-                session.addOutput(stereoAudioDataOutput)
-            }
-        }
-
-        session.commitConfiguration()
-
-        if let spatialAudioDataOutput, let stereoAudioDataOutput {
-            spatialAudioDataOutput.setSampleBufferDelegate(
-                self,
-                queue: self.sessionQueue
-            )
-
-            stereoAudioDataOutput.setSampleBufferDelegate(
-                self,
-                queue: self.sessionQueue
-            )
         }
     }
+
 
     func startRecording() {
         sessionQueue.async { [self] in
@@ -356,25 +354,23 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
     private func appendSampleBufferForSpatialAudio(
         _ sampleBuffer: CMSampleBuffer
     ) {
-        if !isRecordForCallBacks { return }
+        guard isRecordForCallBacks else { return }
+
         var sampleBufferToWrite: CMSampleBuffer?
-        if self.spatialAudioMetaDataSampleGenerator != nil {
-            self.spatialAudioMetaDataSampleGenerator?.analyzeAudioSample(
-                sampleBuffer
-            )
+
+        if let generator = self.spatialAudioMetaDataSampleGenerator {
+            generator.analyzeAudioSample(sampleBuffer)
             sampleBufferToWrite = createAudioSampleBufferCopy(sampleBuffer)
         } else {
-            sampleBufferToWrite = createSpatialAudioSampleBufferCopy(
-                sampleBufferToWrite!
-            )
+            sampleBufferToWrite = createSpatialAudioSampleBufferCopy(sampleBuffer)
         }
 
-        if self.isRecordForCallBacks {
-            if let sampleBuffer = sampleBufferToWrite {
-                self.assetWriterSpatialAudioInput?.append(sampleBuffer)
-            }
-        }
+        guard isRecordForCallBacks,
+              let buffer = sampleBufferToWrite else { return }
+
+        self.assetWriterSpatialAudioInput?.append(buffer)
     }
+
 
     private func createSpatialAudioSampleBufferCopy(
         _ sampleBuffer: CMSampleBuffer

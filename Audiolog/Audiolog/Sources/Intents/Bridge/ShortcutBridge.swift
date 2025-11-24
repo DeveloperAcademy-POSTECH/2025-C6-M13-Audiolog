@@ -15,6 +15,7 @@ final class ShortcutBridge {
     enum Action: Equatable {
         case none
         case startRecording
+        case stopRecording
         case searchAndPlay(query: String)
         case playCategory(String)
     }

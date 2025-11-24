@@ -16,6 +16,7 @@ struct AudiologView: View {
     @State private var generateTitleTask: Task<Void, Never>?
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(ShortcutBridge.self) private var shortcutBridge
 
     @Query(sort: [
         SortDescriptor<Recording>(\Recording.createdAt, order: .reverse)
@@ -27,7 +28,6 @@ struct AudiologView: View {
     @State private var isRecordCreated: Bool = false
     @State private var isIntelligenceEnabled: Bool = false
 
-    @State private var shortcutBridge = ShortcutBridge.shared
     @State private var startRecordingFromShortcut: Bool = false
     @State private var searchQueryFromShortcut: String = ""
 
@@ -110,6 +110,13 @@ struct AudiologView: View {
         case .startRecording:
             currentTab = "녹음"
             startRecordingFromShortcut = true
+
+        case .stopRecording:
+            currentTab = "녹음"
+            NotificationCenter.default.post(
+                name: .remoteStopRecording,
+                object: nil
+            )
 
         case .searchAndPlay(let query):
             currentTab = "검색"
