@@ -120,6 +120,10 @@ final class AudioProcessor {
             title = title.trimmingCharacters(
                 in: .whitespacesAndNewlines
             )
+            // Remove trailing period if present
+            if title.hasSuffix(".") {
+                title.removeLast()
+            }
 
             if let location = recording.location {
                 recording.title = "\(title), " + location
