@@ -5,8 +5,10 @@
 //  Created by Sean Cho on 10/28/25.
 //
 
+import AVFoundation
 import SwiftData
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ArchiveView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
@@ -30,6 +32,7 @@ struct ArchiveView: View {
     @State private var isShowingBulkDeleteAlert: Bool = false
     @State private var bulkDeleteCount: Int = 0
     @State private var selection = Set<UUID>()
+    @State private var isImporting: Bool = false
     @State private var isSelecting: Bool = false
 
     private var navTitle: String {
@@ -328,6 +331,12 @@ struct ArchiveView: View {
                         }
                         .disabled(selectedFileURLs.isEmpty)
 
+                        Button {
+                            isImporting = true
+                        } label: {
+                            Label("추가", systemImage: "square.and.arrow.down")
+                        }
+                        
                         Spacer()
 
                         Button {
@@ -339,6 +348,18 @@ struct ArchiveView: View {
                         }
                         .disabled(selection.isEmpty)
                     }
+                }
+            }
+            .fileImporter(
+                isPresented: $isImporting,
+                allowedContentTypes: [.audio, .mpeg4Movie, .movie],
+                allowsMultipleSelection: true
+            ) { result in
+                switch result {
+                case .success(let urls):
+                    handleImportedFiles(from: urls)
+                case .failure(let error):
+                    logger.log("[ArchiveView] file import failed: \(String(describing: error))")
                 }
             }
             .scrollIndicators(.hidden)
@@ -353,6 +374,71 @@ struct ArchiveView: View {
         recordings
             .filter { selection.contains($0.id) }
             .compactMap { fileURL(for: $0) }
+    }
+
+    private func handleImportedFiles(from urls: [URL]) {
+        guard !urls.isEmpty else { return }
+
+        let documentURL = getDocumentURL()
+
+        for url in urls {
+            let fileName = uniqueFileName(for: url.lastPathComponent, in: documentURL)
+            let destinationURL = documentURL.appendingPathComponent(fileName)
+
+            do {
+                let shouldStopAccessing = url.startAccessingSecurityScopedResource()
+                defer {
+                    if shouldStopAccessing {
+                        url.stopAccessingSecurityScopedResource()
+                    }
+                }
+
+                if FileManager.default.fileExists(atPath: destinationURL.path) {
+                    try FileManager.default.removeItem(at: destinationURL)
+                }
+                try FileManager.default.copyItem(at: url, to: destinationURL)
+
+                let asset = AVURLAsset(url: destinationURL)
+                let durationSeconds = CMTimeGetSeconds(asset.duration)
+
+                let recording = Recording(
+                    fileName: fileName,
+                    duration: durationSeconds,
+                    weather: nil,
+                    location: nil
+                )
+
+                modelContext.insert(recording)
+            } catch {
+                logger.log("[ArchiveView] ERROR: failed to import file. error=\(String(describing: error))")
+            }
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            logger.log("[ArchiveView] ERROR: failed to save imported recordings. error=\(String(describing: error))")
+        }
+    }
+
+    private func uniqueFileName(for originalName: String, in directory: URL) -> String {
+        let url = directory.appendingPathComponent(originalName)
+        if !FileManager.default.fileExists(atPath: url.path) {
+            return originalName
+        }
+
+        let baseName = url.deletingPathExtension().lastPathComponent
+        let ext = url.pathExtension
+
+        var index = 1
+        while true {
+            let candidate = "\(baseName) \(index).\(ext)"
+            let candidateURL = directory.appendingPathComponent(candidate)
+            if !FileManager.default.fileExists(atPath: candidateURL.path) {
+                return candidate
+            }
+            index += 1
+        }
     }
 
     private func fileURL(for recording: Recording) -> URL? {
@@ -419,3 +505,4 @@ struct ArchiveView: View {
         selection.removeAll()
     }
 }
+

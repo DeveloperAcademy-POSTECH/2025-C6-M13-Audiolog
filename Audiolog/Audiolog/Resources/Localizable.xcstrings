@@ -45,6 +45,12 @@
     },
     "%@ 중 %@" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ / %2$@"
+          }
+        },
         "ko" : {
           "stringUnit" : {
             "state" : "new",
@@ -402,7 +408,14 @@
       }
     },
     "다음" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "next"
+          }
+        }
+      }
     },
     "빠른 녹음" : {
       "localizations" : {
@@ -686,6 +699,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No recent search items."
+          }
+        }
+      }
+    },
+    "추가" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "add"
           }
         }
       }
