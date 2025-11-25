@@ -65,9 +65,6 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             }
 
             session.beginConfiguration()
-            defer {
-                session.commitConfiguration()
-            }
 
             // 입력 추가
             if let audioDevice {
@@ -91,6 +88,12 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
 
                         if let stereoAudioDataOutput, let spatialAudioDataOutput
                         {
+                            spatialAudioDataOutput
+                                .spatialAudioChannelLayoutTag =
+                                (kAudioChannelLayoutTag_HOA_ACN_SN3D | 4)
+                            stereoAudioDataOutput.spatialAudioChannelLayoutTag =
+                                kAudioChannelLayoutTag_Stereo
+
                             if session.canAddOutput(spatialAudioDataOutput) {
                                 session.addOutput(spatialAudioDataOutput)
                             }
@@ -108,10 +111,8 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                                 queue: self.sessionQueue
                             )
                         }
-                    } else if audioDeviceInput.isMultichannelAudioModeSupported(
-                        .stereo
-                    ) {
-                        audioDeviceInput.multichannelAudioMode = .stereo
+                    } else {
+                        audioDeviceInput.multichannelAudioMode = .none
 
                         stereoAudioDataOutput = AVCaptureAudioDataOutput()
 
@@ -128,6 +129,7 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
                     }
                 }
             }
+            session.commitConfiguration()
         }
     }
 
