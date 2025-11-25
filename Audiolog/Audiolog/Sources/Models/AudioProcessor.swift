@@ -80,9 +80,21 @@ final class AudioProcessor {
 
         logger.log("[AudioProcessor] Prompt: \(prompt)")
 
-        do {
-            var title = ""
+        var title = ""
 
+        if prompt == basePrompt {
+            title = "새로운 녹음"
+
+            if let location = recording.location {
+                recording.title = "\(title), " + location
+            } else {
+                recording.title = title
+            }
+            recording.isTitleGenerated = true
+            return
+        }
+
+        do {
             if let response = await generateTitleWithGPT(
                 instruction: instruction,
                 prompt: prompt
@@ -429,7 +441,7 @@ final class AudioProcessor {
 
         return signature
     }
-    
+
     private func generateTitleWithGPT(instruction: String, prompt: String) async
         -> String?
     {
