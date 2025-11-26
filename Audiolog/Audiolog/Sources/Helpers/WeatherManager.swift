@@ -5,10 +5,10 @@
 ////  Created by Seungeun Park on 11/10/25.
 ////
 //
-//import WeatherKit
-//import CoreLocation
+// import WeatherKit
+// import CoreLocation
 //
-//class WeatherManager {
+// class WeatherManager {
 //    private var weatherkit: Weather?
 //
 //    func getWeather(location: CLLocation) async throws -> String {
@@ -64,4 +64,4 @@
 //            return "알 수 없음"
 //        }
 //    }
-//}
+// }

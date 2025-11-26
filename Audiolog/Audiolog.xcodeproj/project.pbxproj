@@ -708,7 +708,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Audiolog;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSCameraUsageDescription = "녹음만쓰는데 왜 카메라 권한을 요청하는 지 저도 모르겠어요. 감사합니다.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "오디오 녹음 및 처리를 위한 미디어 세션 사용 시 필요합니다.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "녹음된 소리를 저장할 때 장소의 위치를 함께 저장합니다.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "소리를 녹음하기 위해 마이크에 접근합니다.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "음성을 녹음하시면 대화 내용을 기록합니다.";
@@ -760,7 +760,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = Audiolog;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSCameraUsageDescription = "녹음만쓰는데 왜 카메라 권한을 요청하는 지 저도 모르겠어요. 감사합니다.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "오디오 녹음 및 처리를 위한 미디어 세션 사용 시 필요합니다.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "녹음된 소리를 저장할 때 장소의 위치를 함께 저장합니다.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "소리를 녹음하기 위해 마이크에 접근합니다.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "음성을 녹음하시면 대화 내용을 기록합니다.";

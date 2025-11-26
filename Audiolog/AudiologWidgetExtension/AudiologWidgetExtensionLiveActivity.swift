@@ -6,8 +6,8 @@
 //
 
 import ActivityKit
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 struct AudiologWidgetExtensionAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
@@ -21,7 +21,8 @@ struct AudiologWidgetExtensionAttributes: ActivityAttributes {
 
 struct AudiologWidgetExtensionLiveActivity: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: AudiologWidgetExtensionAttributes.self) { context in
+        ActivityConfiguration(for: AudiologWidgetExtensionAttributes.self) {
+            context in
             // Lock screen/banner UI goes here
             VStack {
                 Text("Hello \(context.state.emoji)")
@@ -63,17 +64,25 @@ extension AudiologWidgetExtensionAttributes {
 }
 
 extension AudiologWidgetExtensionAttributes.ContentState {
-    fileprivate static var smiley: AudiologWidgetExtensionAttributes.ContentState {
+    fileprivate static var smiley:
+        AudiologWidgetExtensionAttributes.ContentState
+    {
         AudiologWidgetExtensionAttributes.ContentState(emoji: "😀")
-     }
-     
-     fileprivate static var starEyes: AudiologWidgetExtensionAttributes.ContentState {
-         AudiologWidgetExtensionAttributes.ContentState(emoji: "🤩")
-     }
+    }
+
+    fileprivate static var starEyes:
+        AudiologWidgetExtensionAttributes.ContentState
+    {
+        AudiologWidgetExtensionAttributes.ContentState(emoji: "🤩")
+    }
 }
 
-#Preview("Notification", as: .content, using: AudiologWidgetExtensionAttributes.preview) {
-   AudiologWidgetExtensionLiveActivity()
+#Preview(
+    "Notification",
+    as: .content,
+    using: AudiologWidgetExtensionAttributes.preview
+) {
+    AudiologWidgetExtensionLiveActivity()
 } contentStates: {
     AudiologWidgetExtensionAttributes.ContentState.smiley
     AudiologWidgetExtensionAttributes.ContentState.starEyes

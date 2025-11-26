@@ -38,7 +38,7 @@ final class PhoneWCSessionManager: NSObject, WCSessionDelegate {
 
     func session(
         _ session: WCSession,
-        didReceiveMessage message: [String : Any]
+        didReceiveMessage message: [String: Any]
     ) {
         guard let action = message["action"] as? String else { return }
 
@@ -46,7 +46,7 @@ final class PhoneWCSessionManager: NSObject, WCSessionDelegate {
             switch action {
             case "startRecording":
                 ShortcutBridge.shared.action = .startRecording
-                
+
             case "stopRecording":
                 ShortcutBridge.shared.action = .stopRecording
 

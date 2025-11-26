@@ -512,12 +512,11 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             sampleBufferOut: &sampleBufferCopy
         )
 
-        if status == noErr {
-            return sampleBufferCopy!
+        if status == noErr, let buffer = sampleBufferCopy {
+            return buffer
         } else {
-            fatalError(
-                "Error: CMSampleBufferCreateCopy returned error \(status)"
-            )
+            print("Error: CMSampleBufferCreateCopy returned error \(status)")
+            return sampleBuffer
         }
     }
 
@@ -627,6 +626,10 @@ class AudioRecorder: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate,
             }
         }
 
-        return sampleBufferCopy!
+        if let copy = sampleBufferCopy {
+            return copy
+        }
+        print("Error: Failed to create audio sample buffer copy")
+        return sampleBuffer
     }
 }
