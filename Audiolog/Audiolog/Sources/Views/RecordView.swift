@@ -141,12 +141,16 @@ struct RecordView: View {
                     isBusy = true
                     handleRecordButtonTapped()
                     Task {
-                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        try? await Task.sleep(nanoseconds: 1_000_000_000)
                         isBusy = false
                     }
                 } label: {
                     MicButtonLabel(isRecording: audioRecorder.isRecording)
                 }
+
+                WeatherAttributionView()
+                    .opacity(audioRecorder.isRecording ? 0 : 1)
+                    .offset(y: 112)
             }
             .overlay(alignment: .bottom) {
                 VStack {
