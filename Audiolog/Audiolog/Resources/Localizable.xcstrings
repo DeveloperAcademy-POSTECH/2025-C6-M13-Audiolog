@@ -829,6 +829,16 @@
         }
       }
     },
+    "플레이리스트에 포함된 로그가 없어요" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There’s no log in this playlist."
+          }
+        }
+      }
+    },
     "항목을 탐색중입니다. 잠시만 기다려주세요." : {
       "localizations" : {
         "en" : {

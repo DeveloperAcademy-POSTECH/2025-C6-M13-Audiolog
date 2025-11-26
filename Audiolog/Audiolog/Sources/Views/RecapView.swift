@@ -23,7 +23,7 @@ struct RecapView: View {
 
         let popularTags =
             tagToRecordingIDs
-            .filter { $0.value.count >= 3 }
+            .filter { $0.value.count >= 1 }
             .map { $0.key }
             .sorted()
         return popularTags
@@ -56,7 +56,7 @@ struct RecapView: View {
                                 let favoriteRecordings = recordings.filter {
                                     ($0 as Recording).isFavorite == true
                                 }
-                                PlaylistView(
+                                FavoritePlaylistView(
                                     recordings: favoriteRecordings,
                                     thumbnailName: thumbnailName,
                                     playlistTitle: "즐겨찾기"

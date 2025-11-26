@@ -148,7 +148,7 @@ struct AudiologView: View {
             dict["즐겨찾기"] = favoriteCount
         }
 
-        for (tag, ids) in tagToRecordingIDs where ids.count >= 3 {
+        for (tag, ids) in tagToRecordingIDs where ids.count >= 2 {
             dict[tag] = ids.count
         }
 

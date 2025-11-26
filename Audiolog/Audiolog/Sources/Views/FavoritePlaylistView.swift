@@ -8,17 +8,13 @@
 import SwiftData
 import SwiftUI
 
-struct PlaylistView: View {
+struct FavoritePlaylistView: View {
     @Environment(AudioPlayer.self) private var audioPlayer
     @Environment(\.modelContext) private var modelContext
 
     let recordings: [Recording]
     let thumbnailName: String
     let playlistTitle: String
-
-    private var filteredRecordings: [Recording] {
-        recordings.filter { $0.tags?.contains(playlistTitle) == true }
-    }
 
     var body: some View {
         NavigationStack {
@@ -30,12 +26,15 @@ struct PlaylistView: View {
                     .blur(radius: 160)
                     .offset(x: -100, y: -368)
                 VStack(spacing: 0) {
-                    if filteredRecordings.isEmpty {
+                    if recordings.isEmpty {
                         Spacer()
                         VStack(spacing: 10) {
-                            Text("플레이리스트에 포함된 로그가 없어요")
+                            Text("아직 즐겨찾기된 로그가 없어요")
                                 .font(.title3)
                                 .foregroundStyle(.lbl2)
+                            Text("전체 로그 탭에서 좋아하는 로그를 추가해보세요")
+                                .font(.footnote)
+                                .foregroundStyle(.lbl3)
                             Spacer()
                                 .frame(height: 20)
                         }
@@ -54,7 +53,7 @@ struct PlaylistView: View {
                                         .font(.body.weight(.semibold))
                                         .foregroundColor(.lbl1)
 
-                                    Text("\(filteredRecordings.count)개")
+                                    Text("\(recordings.count)개")
                                         .font(.footnote.weight(.semibold))
                                         .foregroundColor(.lbl2)
                                 }
@@ -63,8 +62,8 @@ struct PlaylistView: View {
                                 Spacer()
 
                                 Button {
-                                    audioPlayer.setPlaylist(filteredRecordings)
-                                    audioPlayer.load(filteredRecordings[0])
+                                    audioPlayer.setPlaylist(recordings)
+                                    audioPlayer.load(recordings[0])
                                     audioPlayer.play()
                                 } label: {
                                     HStack(spacing: 5) {
@@ -87,7 +86,7 @@ struct PlaylistView: View {
                             )
                             .listRowSeparator(.hidden)
 
-                            ForEach(filteredRecordings) { item in
+                            ForEach(recordings) { item in
                                 HStack {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 5)
@@ -119,7 +118,7 @@ struct PlaylistView: View {
                                     }
                                     .contentShape(Rectangle())
                                     .onTapGesture {
-                                        audioPlayer.setPlaylist(filteredRecordings)
+                                        audioPlayer.setPlaylist(recordings)
                                         audioPlayer.load(item)
                                         audioPlayer.play()
                                     }
@@ -152,28 +151,6 @@ struct PlaylistView: View {
                                         .fill(.listBg)
                                 )
                                 .listRowSeparator(.hidden)
-                                .swipeActions(
-                                    edge: .trailing,
-                                    allowsFullSwipe: true
-                                ) {
-                                    Button(role: .destructive) {
-                                        if let index = item.tags?.firstIndex(of: playlistTitle) {
-                                            item.tags?.remove(at: index)
-                                            do {
-                                                try modelContext.save()
-                                            } catch {
-                                                logger.log("[PlaylistView] tag removal save failed: \(String(describing: error))")
-                                            }
-                                        }
-                                    } label: {
-                                        VStack {
-                                            Image(
-                                                systemName: "xmark"
-                                            )
-                                            Text("삭제")
-                                        }
-                                    }
-                                }
                                 .swipeActions(
                                     edge: .leading,
                                     allowsFullSwipe: false
