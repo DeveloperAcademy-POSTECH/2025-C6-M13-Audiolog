@@ -326,7 +326,7 @@ struct ArchiveView: View {
                             showAddTagAlert()
                         } label: {
                             Image(
-                                systemName: "plus"
+                                systemName: "info.circle"
                             )
                         }
                         .disabled(selection.isEmpty)
