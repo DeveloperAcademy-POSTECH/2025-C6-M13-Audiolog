@@ -429,7 +429,7 @@ final class AudioProcessor {
 
         return signature
     }
-    
+
     private func generateTitleWithGPT(instruction: String, prompt: String) async
         -> String?
     {
