@@ -20,7 +20,7 @@ struct RecordView: View {
     @Environment(\.modelContext) private var modelContext
 
     private let locationManager = LocationManager()
-    //    private let weatherManager = WeatherManager()
+    private let weatherManager = WeatherManager()
 
     @State private var currentLocation: String?
     @State private var currentWeather: String?
@@ -161,16 +161,16 @@ struct RecordView: View {
             .background(.bg1)
             .onAppear {
                 if timelineStart == nil { timelineStart = Date() }
-                locationManager.onLocationUpdate = { _, address in
+                locationManager.onLocationUpdate = { location, address in
                     logger.log("location 업데이트 됨")
                     self.currentLocation = address
-                    //                    Task {
-                    //                        self.currentWeather =
-                    //                            try await weatherManager.getWeather(
-                    //                                location: location
-                    //                            )
-                    //                        logger.log("currentWeather: \(currentWeather ?? "")")
-                    //                    }
+                    Task {
+                        self.currentWeather =
+                            try await weatherManager.getWeather(
+                                location: location
+                            )
+                        logger.log("currentWeather: \(currentWeather ?? "")")
+                    }
                 }
                 audioRecorder.setupCaptureSession()
                 locationManager.requestLocation()
