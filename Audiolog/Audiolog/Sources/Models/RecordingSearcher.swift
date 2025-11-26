@@ -30,7 +30,7 @@ final class RecordingSearcher {
             return
         }
     }
-    
+
     func compare(
         searchText: String,
         recording: Recording,
@@ -51,13 +51,13 @@ final class RecordingSearcher {
                 )
                 return true
             }
-            
+
             let prefixLength = min(2, loweredSearch.count)
             if let tags = recording.tags, prefixLength > 0 {
                 let prefix = String(loweredSearch.prefix(prefixLength))
                 let tagsString = tags.joined(separator: ", ")
                 let tagsMatch = tagsString.contains(prefix)
-                
+
                 if tagsMatch { return true }
             }
         }
@@ -99,7 +99,7 @@ final class RecordingSearcher {
         if let weather = recording.weather {
             prompt += "날씨: \(weather) \n"
         }
-        
+
         if let tags = recording.tags {
             prompt += "태그: \(tags.joined(separator: ", "))"
         }
