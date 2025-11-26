@@ -28,6 +28,8 @@ struct ArchiveView: View {
     @State private var pendingDelete: Recording?
     @State private var isShowingDeleteAlert: Bool = false
     @State private var isShowingBulkDeleteAlert: Bool = false
+    @State private var isShowingAddTagAlert: Bool = false
+    @State private var tagInput: String = ""
     @State private var bulkDeleteCount: Int = 0
     @State private var selection = Set<UUID>()
     @State private var isSelecting: Bool = false
@@ -161,8 +163,8 @@ struct ArchiveView: View {
                                             Image(
                                                 uiImage: UIImage(
                                                     named: item.isFavorite
-                                                    ? "FavoriteOn"
-                                                    : "FavoriteOff"
+                                                        ? "FavoriteOn"
+                                                        : "FavoriteOff"
                                                 )!
                                             )
                                             .resizable()
@@ -170,8 +172,14 @@ struct ArchiveView: View {
                                             .frame(width: 20, height: 20)
                                         }
                                         .contentShape(Rectangle())
-                                        .frame(width: 44, height: 44, alignment: .trailing)
-                                        .disabled(isSelecting || editingId != nil)
+                                        .frame(
+                                            width: 44,
+                                            height: 44,
+                                            alignment: .trailing
+                                        )
+                                        .disabled(
+                                            isSelecting || editingId != nil
+                                        )
                                         .accessibilityHidden(true)
                                         .transition(.move(edge: .trailing))
                                     }
@@ -294,6 +302,17 @@ struct ArchiveView: View {
             } message: {
                 Text("삭제하시면 되돌릴 수 없어요.")
             }
+            .alert("정보 추가", isPresented: $isShowingAddTagAlert) {
+                TextField("정보 입력", text: $tagInput)
+                Button("확인") {
+                    addTagToSelected()
+                }
+                Button("취소", role: .cancel) {
+                    tagInput = ""
+                }
+            } message: {
+                Text("AI가 검색에 참고할 정보를 입력해주세요.")
+            }
             .navigationTitle(navTitle)
             .toolbar(isSelecting ? .hidden : .visible, for: .tabBar)
             .environment(
@@ -301,6 +320,20 @@ struct ArchiveView: View {
                 .constant(isSelecting ? .active : .inactive)
             )
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if isSelecting {
+                        Button {
+                            showAddTagAlert()
+                        } label: {
+                            Image(
+                                systemName: "plus"
+                            )
+                        }
+                        .disabled(selection.isEmpty)
+                        .accessibilityLabel("AI가 검색에 참고할 정보 추가하기")
+                    }
+                }
+
                 ToolbarItem {
                     Button(isSelecting ? "취소" : "선택") {
                         withAnimation {
@@ -390,6 +423,33 @@ struct ArchiveView: View {
                 "[ArchiveView] favorite save failed: \(String(describing: error))"
             )
         }
+    }
+
+    private func showAddTagAlert() {
+        tagInput = ""
+        isShowingAddTagAlert = true
+    }
+
+    private func addTagToSelected() {
+        let newTag = tagInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newTag.isEmpty else { return }
+
+        let targets = recordings.filter {
+            selection.contains($0.id)
+        }
+
+        for item in targets {
+            if item.tags == nil {
+                item.tags = []
+            }
+
+            if let tags = item.tags, !tags.contains(newTag) {
+                item.tags?.append(newTag)
+            }
+        }
+
+        try? modelContext.save()
+        tagInput = ""
     }
 
     private func delete(_ items: [Recording]) {

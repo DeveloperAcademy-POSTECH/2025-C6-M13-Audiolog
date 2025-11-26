@@ -464,7 +464,7 @@ private final class TopTagsObserver: NSObject, SNResultsObserving {
 
     init(
         topK: Int = 3,
-        minConfidence: Double = 0.7,
+        minConfidence: Double = 0.8,
         completion: @escaping ([String]) -> Void
     ) {
         self.topK = topK
