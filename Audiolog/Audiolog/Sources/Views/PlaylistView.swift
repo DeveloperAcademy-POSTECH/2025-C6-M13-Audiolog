@@ -156,8 +156,8 @@ struct PlaylistView: View {
                                     allowsFullSwipe: true
                                 ) {
                                     Button {
-                                        if let index = item.tags.firstIndex(of: thumbnailName) {
-                                            item.tags.remove(at: index)
+                                        if let index = item.tags?.firstIndex(of: thumbnailName) {
+                                            item.tags?.remove(at: index)
                                             do {
                                                 try modelContext.save()
                                             } catch {
