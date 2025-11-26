@@ -152,6 +152,28 @@ struct PlaylistView: View {
                                 )
                                 .listRowSeparator(.hidden)
                                 .swipeActions(
+                                    edge: .trailing,
+                                    allowsFullSwipe: true
+                                ) {
+                                    Button {
+                                        if let index = item.tags.firstIndex(of: thumbnailName) {
+                                            item.tags.remove(at: index)
+                                            do {
+                                                try modelContext.save()
+                                            } catch {
+                                                logger.log("[PlaylistView] tag removal save failed: \(String(describing: error))")
+                                            }
+                                        }
+                                    } label: {
+                                        VStack {
+                                            Image(
+                                                systemName: "xmark"
+                                            )
+                                            Text("삭제")
+                                        }
+                                    }
+                                }
+                                .swipeActions(
                                     edge: .leading,
                                     allowsFullSwipe: false
                                 ) {
