@@ -20,8 +20,7 @@ Date: November 28, 2025
 Apple 공간음향의 가장 큰 특징은 **동적 머리 추적(Dynamic Head Tracking)**에 있다. AirPods 사용자와 디바이스 스크린의 방향을 비교해, 사용자가 움직이더라도 실제 해당 공간에 있는 것처럼 소리의 발생 위치를 일정하게 유지한다.
 2. **공간 음향 녹음**: iPhone 15 Pro 모델 이상부터, 공간 음향 녹음을 제공한다. 이때 음향 버퍼는 **X, Y, Z 좌표와 W(전체 음압)**의 정보를 가진다.
 Audiolog는 스테레오 음향으로 목소리의 선명함을, 공간 음향으로 현장의 공감감을 동시에 포착하는 **동시 녹음 전략**을 채택했다.
-    
-    ![스크린샷 2025-11-26 오후 11.57.51.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-26_%E1%84%8B%E1%85%A9%E1%84%92%E1%85%AE_11.57.51.png)
+    <img width="902" height="383" alt="스크린샷_2025-11-26_오후_11 57 51" src="https://github.com/user-attachments/assets/770d301f-7f44-4942-96a4-9d5f83f91660" />
     
 
 ### **2. 5단계 분석 파이프라인**
@@ -37,9 +36,7 @@ Audiolog는 **confidence가 가장 높고 0.7이상인 결과값 3개**를 메�
 5. **AI를 활용한 제목 생성**: Apple의 온디바이스 LLM인 **Foundation Models**를 활용했다. Foundation Models는 유저의 시스템에 이미 저장되어있는 모델을 활용해 세션만 생성하는 방식으로 앱의 용량 부담을 전혀 주지 않는다.
 Audiolog에서는 이전 4단계에서 생성된 데이터들을 Foundation Models를 활용해, 30자 이내의 한국어 제목으로 요약한다.
 단순히 "2025년 11월 26일 녹음"보다는 **"비 오는 날 카페에서, NewJeans의 노래가 흐르고, 친구와 웃으며 대화한 기록"**으로 제목이 생성되는 것을 목표로 한다.
-    
-    ![스크린샷 2025-11-27 오전 12.12.53.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_12.12.53.png)
-    
+    <img width="1157" height="584" alt="스크린샷_2025-11-27_오전_12 12 53" src="https://github.com/user-attachments/assets/0b0e8fb8-a873-4ba3-a8ae-f2f731cb621c" />
 
 ### **3. 2단계 검색 파이프라인**
 
@@ -54,8 +51,7 @@ Audiolog는 2단계의 검색 파이프라인을 통해, 기성 녹음 앱의 �
 FoundationModels을 사용할 시 LanguageModelSession을 생성하게 되는데 같은 Session을 공유하는 요청은 같은 맥락을 유지하려 한다. 이에 있어 개별적인 요청임에도 불구하고 이전 요청 혹은 응답의 영향을 받게 된다. 개발자라면 비합리적으로 느껴지겠지만, 맥락이 필요한 요청이 아니라면 매 요청마다 Session을 새로 생성하는 것이 좋다. 이미 FoundationModels 프레임워크 내부적으로 이에 대해 최적화돼 있기 때문이다.
 
 또 하나의 유의할 점은, 지시사항이나 정보를 상세히 전달하는 것보다 **최대한으로 절제된 정보를 전달하는 편의 결과물이 더 좋다**는 것이다. 이는 LM의 **Attention** 개념에서 기인한다. 온디바이스 모델은 경량화의 이유로 기성 서버사이드 모델보다 중요하지 않은 정보를 구분할 수 있는 여유가 적기 때문에, 중요하지 않은 정보에도 필요 이상의 Attention이 할당될 확률이 높다. 따라서 LM에 모든 걸 맡기기보다는 입력 prompt를 조절하는 전처리 과정을 거치는 게 좋다. 
-
-![스크린샷 2025-11-27 오전 12.27.10.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_12.27.10.png)
+<img width="1019" height="320" alt="스크린샷_2025-11-27_오전_12 27 10" src="https://github.com/user-attachments/assets/4b4e71f2-f786-4393-b4f3-062177ec1623" />
 
 - **English ver.**
     
@@ -67,9 +63,8 @@ FoundationModels을 사용할 시 LanguageModelSession을 생성하게 되는데
     
     1. **Spatial Audio Recording:** Starting with the iPhone 15 Pro models, spatial audio recording is supported. In this process, the audio buffer contains information for **X, Y, and Z** coordinates as well as W (omnidirectional sound pressure).
     2. **Audiolog** has adopted a **simultaneous** recording strategy: it captures vocal clarity using stereo audio while simultaneously capturing the spatial presence of the environment using spatial audio.
-    
-    ![스크린샷 2025-11-26 오후 11.57.51.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-26_%E1%84%8B%E1%85%A9%E1%84%92%E1%85%AE_11.57.51.png)
-    
+    <img width="902" height="383" alt="스크린샷_2025-11-26_오후_11 57 51" src="https://github.com/user-attachments/assets/f58b683c-7f6c-469a-a2df-340abf007c14" />
+
     ---
     
     ### 2. 5-Stage Analysis Pipeline
@@ -82,9 +77,8 @@ FoundationModels을 사용할 시 LanguageModelSession을 생성하게 되는데
     4. **Adding Metadata:** Utilizes Apple’s **CoreLocation** and **Weather** frameworks. Audiolog appends data such as location, venue, weather, and time.
     5. **AI-Powered Title Generation:** Utilizes Apple’s on-device LLM, **Foundation Models**. By using models already stored on the user’s system and only generating a session, it places no storage burden on the app. Audiolog uses Foundation Models to summarize the data generated in the previous four stages into a concise title (under 30 characters).
         - *Goal:* Instead of a simple "Recorded on Nov 26, 2025," the goal is to generate a descriptive title like **"Rainy day at a cafe, listening to NewJeans, laughing with a friend."**
-        
-        ![스크린샷 2025-11-27 오전 12.12.53.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_12.12.53.png)
-        
+        <img width="1157" height="584" alt="스크린샷_2025-11-27_오전_12 12 53" src="https://github.com/user-attachments/assets/d660372f-85e2-4c86-98f0-fe5465e72eda" />
+
     
     ---
     
@@ -104,9 +98,7 @@ FoundationModels을 사용할 시 LanguageModelSession을 생성하게 되는데
     First, using Foundation Models involves creating a **LanguageModelSession**. Requests sharing the same Session attempt to maintain the same context. Consequently, even independent requests can be influenced by previous requests or responses. While this may seem counterintuitive to developers, it is better to create a new Session for every request unless context is strictly necessary. The Foundation Models framework is already internally optimized for this approach.
     
     Second, providing **restrained, concise information yields better results** than providing detailed instructions or excessive data. This stems from the concept of **Attention** in Large Language Models (LLMs). Because on-device models are lightweight, they have less capacity to distinguish unimportant information compared to full-scale server-side models. This leads to a higher probability of assigning unnecessary Attention to irrelevant data. Therefore, rather than leaving everything to the LM, it is advisable to perform a pre-processing step to optimize the input prompt.
-    
-    ![스크린샷 2025-11-27 오전 12.27.10.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_12.27.10.png)
-    
+    <img width="1019" height="320" alt="스크린샷_2025-11-27_오전_12 27 10" src="https://github.com/user-attachments/assets/74329eab-7c1e-4af6-8d35-d327205c9b1d" />
 
 ## Design & Accesibility
 
@@ -173,8 +165,7 @@ FoundationModels을 사용할 시 LanguageModelSession을 생성하게 되는데
 힘들기 때문에, **익숙한 배치 구조**와 더불어 **간단하고 접근 가능한 검색·분류 기능**이 필수적이다.
 
 </aside>
-
-![실로암 시각장애 복지관 인터뷰](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/IMG_5079.jpeg)
+![IMG_5079](https://github.com/user-attachments/assets/4722a36d-92f4-4203-b21f-10baeeff8f3c)
 
 실로암 시각장애 복지관 인터뷰
 
@@ -200,9 +191,7 @@ FoundationModels을 사용할 시 LanguageModelSession을 생성하게 되는데
 iOS 생태계에서 사용자가 **가장 빠르게 실행할 수 있는 앱은 단연 '카메라'**입니다. 찰나의 순간을 시각적으로 포착하기 위함입니다. **Audiolog**는 **시각이 아닌 '청각'으로 그 순간을 포착**합니다. 따라서 카메라에 버금가는 **진입 속도**가 필수적이었습니다.
 
 - **QuickAction(잠금화면 위젯):** 잠금 해제 과정을 생략하고, 잠금 화면에서 즉시 앱을 실행 및 녹음을 시작할 수 있도록 설계해 사용자가 기억하고 싶은 순간을 놓치지 않게 했습니다.
-    
-    ![image.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/image.png)
-    
+    <img width="1660" height="1269" alt="image" src="https://github.com/user-attachments/assets/d8a7d244-5292-4397-a6ea-8bcd608e196c" />
 
 ### 2. 디자인 원칙: '전용'이 아닌 '보편'을 지향하다 (Universal Design)
 
@@ -220,28 +209,22 @@ iOS 생태계에서 사용자가 **가장 빠르게 실행할 수 있는 앱은 
 
 - **Problem:** 시각적으로는 아름답지만, VoiceOver 커서가 플로팅 UI 아래에 깔린 콘텐츠를 인식하지 못하거나, 사용자가 ScrollView를 끝없이 탐색해야 하는 내비게이션 트랩이 발생했습니다.
 - **Solution:** Audiolog는 리퀴드 글래스의 **심미성은 유지**하되, VoiceOver가 인식하는 **논리적 구조는 평면적인 계층으로 설계**하여 모든 콘텐츠에 명확하게 도달할 수 있도록 했습니다.
-    
-    ![스크린샷 2025-11-27 오전 2.47.07.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_2.47.07.png)
-    
+    <img width="1212" height="503" alt="스크린샷_2025-11-27_오전_2 47 07" src="https://github.com/user-attachments/assets/cd00e093-38ce-4edc-9e0f-25bb63035b7c" />
 
 **2) 유기적 레이아웃 변화의 예측 불가능성**
 음악 앱 등에서 흔히 보이는, 하단 플레이어가 전체 화면(Bottom Sheet)으로 확장되는 유기적인 인터랙션은 시각장애인에게 혼란을 줍니다.
 
 - **Problem:** 화면의 맥락이 급격하게 변할 때, 시각적 단서가 없는 사용자는 현재 위치를 놓치게 됩니다.
 - **Solution:** 우리는 바텀 액세서리가 화면 전체를 덮으며 확장되는 방식을 배제하고, 예측 가능한 화면 전환 방식을 채택했습니다.
+    <img width="626" height="545" alt="스크린샷_2025-11-27_오전_2 27 43" src="https://github.com/user-attachments/assets/859a9e92-f6fc-4b08-8f68-0cdc6e4fc170" />
     
-    ![스크린샷 2025-11-27 오전 2.27.43.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_2.27.43.png)
-    
-
 ### 4. 미니 플레이어(Global Media Control)의 재정의
 
 앱 어디서나 접근 가능한 '미니 플레이어'는 필수 요소였지만, 앞서 언급한 접근성 문제(계층 및 크기 제한)를 해결해야 했습니다.
 
 - **Standardization:** 독자적인 UI 대신 iOS 시스템 전반에서 통용되는 **Music Controller**의 표준 레이아웃을 차용해 익숙함을 제공했습니다.
 - **VoiceOver 'Magic Tap':** 시각적 요소는 최소화(Minimize)하되, VoiceOver의 핵심 기능인 **매직 탭(Magic Tap, 두 손가락 두 번 탭)** 기능을 완벽하게 지원하여, 보지 않고도 재생/정지를 제어할 수 있는 사용성을 보장했습니다.
-    
-    ![스크린샷 2025-11-27 오전 2.33.17.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_2.33.17.png)
-    
+    <img width="721" height="234" alt="스크린샷_2025-11-27_오전_2 33 17" src="https://github.com/user-attachments/assets/a8359e3b-8dc2-488d-a827-3d59d28fbb93" />
 
 - **English ver.**
     
@@ -300,9 +283,8 @@ iOS 생태계에서 사용자가 **가장 빠르게 실행할 수 있는 앱은 
     Since visually impaired users rely on **sequential navigation**, current recording methods make categorization and retrieval difficult, hindering the recall of memories. Therefore, a **familiar layout structure** combined with **simple and accessible search & categorization features** is essential.
     
     </aside>
-    
-    ![실로암 시각장애 복지관 인터뷰](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/IMG_5079.jpeg)
-    
+    ![IMG_5079](https://github.com/user-attachments/assets/303bcafd-5a84-4ca8-9246-c93949984164)
+
     실로암 시각장애 복지관 인터뷰
     
     ### 🔍 Observation of App Usage Behavior
@@ -334,9 +316,7 @@ iOS 생태계에서 사용자가 **가장 빠르게 실행할 수 있는 앱은 
     In the iOS ecosystem, the fastest app a user can launch is undoubtedly the **Camera**. It exists to visually capture fleeting moments. **Audiolog** **captures those moments through auditory means, not visual ones.** Therefore, achieving an entry speed comparable to the camera was essential.
     
     - **QuickAction (Lock Screen Widget):** We designed the app to skip the unlocking process, allowing users to launch the app and start recording immediately from the lock screen so they never miss a moment they want to remember.
-        
-        ![image.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/image.png)
-        
+        <img width="1660" height="1269" alt="image" src="https://github.com/user-attachments/assets/339ce6c3-b399-4574-9aea-991f3888a68e" />
     
     ### 2. Design Principle: Aiming for 'Universal,' Not 'Exclusive' (Universal Design)
     
@@ -354,23 +334,19 @@ iOS 생태계에서 사용자가 **가장 빠르게 실행할 수 있는 앱은 
     
     - **Problem:** While visually beautiful, this created **"navigation traps"** where the VoiceOver cursor failed to recognize content beneath the floating UI, or users had to scroll endlessly to find information.
     - **Solution:** **While maintaining the aesthetic of Liquid Glass,** Audiolog designed the **logical structure** recognized by VoiceOver to be a **flat hierarchy**, ensuring clear access to all content.
-        
-        ![스크린샷 2025-11-27 오전 2.33.17.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_2.33.17.png)
-        
+        <img width="721" height="234" alt="스크린샷_2025-11-27_오전_2 33 17" src="https://github.com/user-attachments/assets/abdb5408-6931-437c-ad51-96854bacaebf" />
     
     **2) Unpredictability of Organic Layout Changes**
     The organic interaction often seen in music apps, where the bottom player expands into a full screen (Bottom Sheet), causes confusion for visually impaired users.
     
     - **Problem:** When the screen context changes abruptly, users without visual cues lose their current position.
     - **Solution:** We rejected the method where the bottom accessory expands to cover the entire screen and instead adopted a **predictable screen transition** method.
-    
-    ![스크린샷 2025-11-27 오전 2.27.43.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_2.27.43.png)
-    
+    <img width="626" height="545" alt="스크린샷_2025-11-27_오전_2 27 43" src="https://github.com/user-attachments/assets/34ffaee6-5255-4225-b885-b2535af69842" />
+
     ### 4. Redefining the Mini Player (Global Media Control)
     
     A "Mini Player" accessible from anywhere in the app was essential, but we needed to solve the accessibility issues (layering and size limitations) mentioned above.
     
     - **Standardization:** Instead of a unique UI, we adopted the standard layout of the **Music Controller** commonly used across the iOS system to provide familiarity.
     - **VoiceOver 'Magic Tap':** While minimizing visual elements, we fully supported the **Magic Tap** (two-finger double tap), a core VoiceOver feature. This ensures usability that allows users to control play/pause without looking at the screen.
-    
-    ![스크린샷 2025-11-27 오전 2.33.17.png](%ED%85%8C%ED%81%AC,%20%EA%B8%B0%ED%9A%8D,%20%EB%94%94%EC%9E%90%EC%9D%B8%20%EC%84%A4%EB%AA%85/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2025-11-27_%E1%84%8B%E1%85%A9%E1%84%8C%E1%85%A5%E1%86%AB_2.33.17.png)
+    <img width="721" height="234" alt="스크린샷_2025-11-27_오전_2 33 17" src="https://github.com/user-attachments/assets/c9e707b4-1dab-4cf1-ba5c-f60da8decf1c" />
