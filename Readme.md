@@ -334,7 +334,8 @@ iOS 생태계에서 사용자가 **가장 빠르게 실행할 수 있는 앱은 
     
     - **Problem:** While visually beautiful, this created **"navigation traps"** where the VoiceOver cursor failed to recognize content beneath the floating UI, or users had to scroll endlessly to find information.
     - **Solution:** **While maintaining the aesthetic of Liquid Glass,** Audiolog designed the **logical structure** recognized by VoiceOver to be a **flat hierarchy**, ensuring clear access to all content.
-        <img width="721" height="234" alt="스크린샷_2025-11-27_오전_2 33 17" src="https://github.com/user-attachments/assets/abdb5408-6931-437c-ad51-96854bacaebf" />
+![Uploading 스크린샷_2025-11-27_오전_2.47.07.png…]()
+
     
     **2) Unpredictability of Organic Layout Changes**
     The organic interaction often seen in music apps, where the bottom player expands into a full screen (Bottom Sheet), causes confusion for visually impaired users.
