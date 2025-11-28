@@ -1,3 +1,5 @@
+<img width="1728" height="1024" alt="무제 6" src="https://github.com/user-attachments/assets/db6ab0f3-47a9-4ceb-9b6f-8a776cd399aa" />
+
 # 테크, 기획, 디자인 설명
 
 Date: November 28, 2025
@@ -52,53 +54,6 @@ FoundationModels을 사용할 시 LanguageModelSession을 생성하게 되는데
 
 또 하나의 유의할 점은, 지시사항이나 정보를 상세히 전달하는 것보다 **최대한으로 절제된 정보를 전달하는 편의 결과물이 더 좋다**는 것이다. 이는 LM의 **Attention** 개념에서 기인한다. 온디바이스 모델은 경량화의 이유로 기성 서버사이드 모델보다 중요하지 않은 정보를 구분할 수 있는 여유가 적기 때문에, 중요하지 않은 정보에도 필요 이상의 Attention이 할당될 확률이 높다. 따라서 LM에 모든 걸 맡기기보다는 입력 prompt를 조절하는 전처리 과정을 거치는 게 좋다. 
 <img width="1019" height="320" alt="스크린샷_2025-11-27_오전_12 27 10" src="https://github.com/user-attachments/assets/4b4e71f2-f786-4393-b4f3-062177ec1623" />
-
-- **English ver.**
-    
-    ### 1. Spatial Audio
-    
-    **Spatial Audio** is a **3D audio technology** that goes beyond the traditional stereo method (which distinguishes left and right) to allow **sound to be heard from 360 degrees around the user.**
-    
-    The most significant feature of Apple Spatial Audio is **Dynamic Head Tracking**. By comparing the orientation of the AirPods user with the device screen, it maintains a consistent sound source location even when the user moves, creating the sensation that the user is actually present in that space.
-    
-    1. **Spatial Audio Recording:** Starting with the iPhone 15 Pro models, spatial audio recording is supported. In this process, the audio buffer contains information for **X, Y, and Z** coordinates as well as W (omnidirectional sound pressure).
-    2. **Audiolog** has adopted a **simultaneous** recording strategy: it captures vocal clarity using stereo audio while simultaneously capturing the spatial presence of the environment using spatial audio.
-    <img width="902" height="383" alt="스크린샷_2025-11-26_오후_11 57 51" src="https://github.com/user-attachments/assets/f58b683c-7f6c-469a-a2df-340abf007c14" />
-
-    ---
-    
-    ### 2. 5-Stage Analysis Pipeline
-    
-    After recording is complete, Audiolog analyzes the record through a 5-stage process. This utilizes **Apple’s native frameworks and on-device models to ensure user privacy and stability.**
-    
-    1. **Speech-to-Text:** Utilizes Apple’s **Speech framework**. While the Speech framework supports both on-device and server-side STT models, Audiolog exclusively uses the **on-device model to transcribe detected speech into text.**
-    2. **Sound Classification:** Utilizes Apple’s **Sound Analysis model**. This model classifies non-verbal sounds from the audio record into approximately 300 different classes. Audiolog saves **the top 3 results that have a confidence score of 0.7 or higher** as metadata.
-    3. **Music Recognition:** Utilizes Apple’s **ShazamKit framework**. Audiolog detects background music in the space and prioritizes this information when generating the title.
-    4. **Adding Metadata:** Utilizes Apple’s **CoreLocation** and **Weather** frameworks. Audiolog appends data such as location, venue, weather, and time.
-    5. **AI-Powered Title Generation:** Utilizes Apple’s on-device LLM, **Foundation Models**. By using models already stored on the user’s system and only generating a session, it places no storage burden on the app. Audiolog uses Foundation Models to summarize the data generated in the previous four stages into a concise title (under 30 characters).
-        - *Goal:* Instead of a simple "Recorded on Nov 26, 2025," the goal is to generate a descriptive title like **"Rainy day at a cafe, listening to NewJeans, laughing with a friend."**
-        <img width="1157" height="584" alt="스크린샷_2025-11-27_오전_12 12 53" src="https://github.com/user-attachments/assets/d660372f-85e2-4c86-98f0-fe5465e72eda" />
-
-    
-    ---
-    
-    ### 3. 2-Stage Search Pipeline
-    
-    Audiolog streamlines the browsing process of conventional recording apps through a 2-stage search pipeline.
-    
-    1. **Keyword Inclusion Search:** Similar to standard search functions. If the user’s search query is included in the title, it is added to the results.
-    2. **AI-Powered Similarity Search:** If the search query is not found in the title, **Foundation Models** are used to compare the relevance between the record’s metadata and the search query.
-    
-    ---
-    
-    ### 4. Strategy for Using Foundation Models
-    
-    There are two key points to consider when using Foundation Models.
-    
-    First, using Foundation Models involves creating a **LanguageModelSession**. Requests sharing the same Session attempt to maintain the same context. Consequently, even independent requests can be influenced by previous requests or responses. While this may seem counterintuitive to developers, it is better to create a new Session for every request unless context is strictly necessary. The Foundation Models framework is already internally optimized for this approach.
-    
-    Second, providing **restrained, concise information yields better results** than providing detailed instructions or excessive data. This stems from the concept of **Attention** in Large Language Models (LLMs). Because on-device models are lightweight, they have less capacity to distinguish unimportant information compared to full-scale server-side models. This leads to a higher probability of assigning unnecessary Attention to irrelevant data. Therefore, rather than leaving everything to the LM, it is advisable to perform a pre-processing step to optimize the input prompt.
-    <img width="1019" height="320" alt="스크린샷_2025-11-27_오전_12 27 10" src="https://github.com/user-attachments/assets/74329eab-7c1e-4af6-8d35-d327205c9b1d" />
 
 ## Design & Accesibility
 
@@ -226,8 +181,55 @@ iOS 생태계에서 사용자가 **가장 빠르게 실행할 수 있는 앱은 
 - **VoiceOver 'Magic Tap':** 시각적 요소는 최소화(Minimize)하되, VoiceOver의 핵심 기능인 **매직 탭(Magic Tap, 두 손가락 두 번 탭)** 기능을 완벽하게 지원하여, 보지 않고도 재생/정지를 제어할 수 있는 사용성을 보장했습니다.
     <img width="721" height="234" alt="스크린샷_2025-11-27_오전_2 33 17" src="https://github.com/user-attachments/assets/a8359e3b-8dc2-488d-a827-3d59d28fbb93" />
 
+
+
 - **English ver.**
     
+    ### 1. Spatial Audio
+    
+    **Spatial Audio** is a **3D audio technology** that goes beyond the traditional stereo method (which distinguishes left and right) to allow **sound to be heard from 360 degrees around the user.**
+    
+    The most significant feature of Apple Spatial Audio is **Dynamic Head Tracking**. By comparing the orientation of the AirPods user with the device screen, it maintains a consistent sound source location even when the user moves, creating the sensation that the user is actually present in that space.
+    
+    1. **Spatial Audio Recording:** Starting with the iPhone 15 Pro models, spatial audio recording is supported. In this process, the audio buffer contains information for **X, Y, and Z** coordinates as well as W (omnidirectional sound pressure).
+    2. **Audiolog** has adopted a **simultaneous** recording strategy: it captures vocal clarity using stereo audio while simultaneously capturing the spatial presence of the environment using spatial audio.
+    <img width="902" height="383" alt="스크린샷_2025-11-26_오후_11 57 51" src="https://github.com/user-attachments/assets/f58b683c-7f6c-469a-a2df-340abf007c14" />
+
+    ---
+    
+    ### 2. 5-Stage Analysis Pipeline
+    
+    After recording is complete, Audiolog analyzes the record through a 5-stage process. This utilizes **Apple’s native frameworks and on-device models to ensure user privacy and stability.**
+    
+    1. **Speech-to-Text:** Utilizes Apple’s **Speech framework**. While the Speech framework supports both on-device and server-side STT models, Audiolog exclusively uses the **on-device model to transcribe detected speech into text.**
+    2. **Sound Classification:** Utilizes Apple’s **Sound Analysis model**. This model classifies non-verbal sounds from the audio record into approximately 300 different classes. Audiolog saves **the top 3 results that have a confidence score of 0.7 or higher** as metadata.
+    3. **Music Recognition:** Utilizes Apple’s **ShazamKit framework**. Audiolog detects background music in the space and prioritizes this information when generating the title.
+    4. **Adding Metadata:** Utilizes Apple’s **CoreLocation** and **Weather** frameworks. Audiolog appends data such as location, venue, weather, and time.
+    5. **AI-Powered Title Generation:** Utilizes Apple’s on-device LLM, **Foundation Models**. By using models already stored on the user’s system and only generating a session, it places no storage burden on the app. Audiolog uses Foundation Models to summarize the data generated in the previous four stages into a concise title (under 30 characters).
+        - *Goal:* Instead of a simple "Recorded on Nov 26, 2025," the goal is to generate a descriptive title like **"Rainy day at a cafe, listening to NewJeans, laughing with a friend."**
+        <img width="1157" height="584" alt="스크린샷_2025-11-27_오전_12 12 53" src="https://github.com/user-attachments/assets/d660372f-85e2-4c86-98f0-fe5465e72eda" />
+
+    
+    ---
+    
+    ### 3. 2-Stage Search Pipeline
+    
+    Audiolog streamlines the browsing process of conventional recording apps through a 2-stage search pipeline.
+    
+    1. **Keyword Inclusion Search:** Similar to standard search functions. If the user’s search query is included in the title, it is added to the results.
+    2. **AI-Powered Similarity Search:** If the search query is not found in the title, **Foundation Models** are used to compare the relevance between the record’s metadata and the search query.
+    
+    ---
+    
+    ### 4. Strategy for Using Foundation Models
+    
+    There are two key points to consider when using Foundation Models.
+    
+    First, using Foundation Models involves creating a **LanguageModelSession**. Requests sharing the same Session attempt to maintain the same context. Consequently, even independent requests can be influenced by previous requests or responses. While this may seem counterintuitive to developers, it is better to create a new Session for every request unless context is strictly necessary. The Foundation Models framework is already internally optimized for this approach.
+    
+    Second, providing **restrained, concise information yields better results** than providing detailed instructions or excessive data. This stems from the concept of **Attention** in Large Language Models (LLMs). Because on-device models are lightweight, they have less capacity to distinguish unimportant information compared to full-scale server-side models. This leads to a higher probability of assigning unnecessary Attention to irrelevant data. Therefore, rather than leaving everything to the LM, it is advisable to perform a pre-processing step to optimize the input prompt.
+    <img width="1019" height="320" alt="스크린샷_2025-11-27_오전_12 27 10" src="https://github.com/user-attachments/assets/74329eab-7c1e-4af6-8d35-d327205c9b1d" />
+
     ### Desk Research
     
     <aside>
